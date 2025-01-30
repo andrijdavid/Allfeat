@@ -1,7 +1,7 @@
 [package]
-name = "midds-song"
+name = "midds-musical-work"
 version = "1.0.0-dev"
-description = "MIDDS representating a Song (aka Musical Work) entity"
+description = "MIDDS representating a Musical Work entity"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -14,7 +14,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 log = { workspace = true }
 
 # Substrate
-polkadot-sdk = { workspace = true, features = ["experimental", "runtime"] }
+frame-support = { workspace = true }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
 
@@ -26,11 +26,11 @@ std = [
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"log/std",
-	"polkadot-sdk/std",
 	"allfeat-support/std",
+	"frame-support/std",
 ]
 runtime-benchmarks = [
-	"polkadot-sdk/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
 	"allfeat-support/runtime-benchmarks",
 ]
-try-runtime = ["polkadot-sdk/try-runtime"]
+try-runtime = ["frame-support/try-runtime"]

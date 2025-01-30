@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Allfeat.
 
@@ -15,11 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadot_sdk::{
-	frame_support::traits::ConstU32,
+use frame_support::{
 	sp_runtime::{traits::Hash as HashT, BoundedVec, RuntimeDebug},
+	traits::ConstU32,
 };
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 pub use ipi::IPINameNumber;
@@ -27,12 +27,12 @@ pub use iswc::ISWC;
 
 mod ipi {
 	use super::*;
-	use polkadot_sdk::{frame_support::ensure, sp_runtime::DispatchError};
+	use frame_support::{ensure, sp_runtime::DispatchError};
 
 	#[derive(
 		Encode, Default, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo,
 	)]
-	pub struct IPINameNumber(u64);
+	pub struct IPINameNumber(pub u64);
 
 	impl TryFrom<u64> for IPINameNumber {
 		type Error = DispatchError;
@@ -162,10 +162,10 @@ mod iswc {
 	}
 }
 
-pub type SongTitle = BoundedVec<u8, ConstU32<128>>;
+pub type MusicalWorkTitle = BoundedVec<u8, ConstU32<128>>;
 
 #[derive(Encode, Default, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum SongType {
+pub enum MusicalWorkType {
 	#[default]
 	Instrumental,
 	Song,

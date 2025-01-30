@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 //! Service and service factory implementation. Specialized wrapper over substrate service.
 
-pub use melodie_runtime::apis::RuntimeApi as MelodieRuntimeApi;
+pub use melodie_runtime::RuntimeApi as MelodieRuntimeApi;
 
 // std
 use futures::StreamExt;
@@ -28,18 +28,15 @@ use futures::FutureExt;
 // allfeat
 use allfeat_primitives::*;
 // polkadot-sdk
-use polkadot_sdk::{
-	sc_client_api::{backend::Backend, BlockBackend},
-	sc_consensus_babe::{BabeBlockImport, BabeWorkerHandle, ImportQueueParams},
-	sc_consensus_slots::SlotProportion,
-	sc_network::Event,
-	sc_rpc_spec_v2::SubscriptionTaskExecutor,
-	sc_service::{error::Error as ServiceError, Configuration, TaskManager, WarpSyncConfig},
-	sc_telemetry::TelemetryWorker,
-	sc_transaction_pool_api::OffchainTransactionPoolFactory,
-	sp_api::ConstructRuntimeApi,
-	*,
-};
+use sc_client_api::{backend::Backend, BlockBackend};
+use sc_consensus_babe::{BabeBlockImport, BabeWorkerHandle, ImportQueueParams};
+use sc_consensus_slots::SlotProportion;
+use sc_network::Event;
+use sc_rpc_spec_v2::SubscriptionTaskExecutor;
+use sc_service::{error::Error as ServiceError, Configuration, TaskManager, WarpSyncConfig};
+use sc_telemetry::TelemetryWorker;
+use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use sp_api::ConstructRuntimeApi;
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.
@@ -74,7 +71,7 @@ type Service<RuntimeApi> = sc_service::PartialComponents<
 	FullBackend,
 	FullSelectChain,
 	sc_consensus::DefaultImportQueue<Block>,
-	sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi>>,
+	sc_transaction_pool::TransactionPoolHandle<Block, FullClient<RuntimeApi>>,
 	ExtraParts<RuntimeApi>,
 >;
 
@@ -157,12 +154,15 @@ where
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
-	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
-		config.transaction_pool.clone(),
-		config.role.is_authority().into(),
-		config.prometheus_registry(),
-		task_manager.spawn_essential_handle(),
-		client.clone(),
+	let transaction_pool = Arc::from(
+		sc_transaction_pool::Builder::new(
+			task_manager.spawn_essential_handle(),
+			client.clone(),
+			config.role.is_authority().into(),
+		)
+		.with_options(config.transaction_pool.clone())
+		.with_prometheus(config.prometheus_registry())
+		.build(),
 	);
 
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
@@ -294,7 +294,7 @@ where
 				network_provider: Arc::new(network.clone()),
 				enable_http_requests: true,
 				custom_extensions: |_| vec![],
-			})
+			})?
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),
 		);
@@ -325,7 +325,6 @@ where
 			backend.clone(),
 			Some(shared_authority_set.clone()),
 		);
-		let chain_spec = config.chain_spec.cloned_box();
 
 		Box::new(move |subscription_executor: SubscriptionTaskExecutor| {
 			let deps = crate::rpc::FullDeps {
@@ -343,7 +342,6 @@ where
 					subscription_executor: subscription_executor.clone(),
 					finality_provider: finality_proof_provider.clone(),
 				},
-				chain_spec: chain_spec.cloned_box(),
 			};
 			crate::rpc::create_full(deps).map_err(Into::into)
 		})
@@ -513,8 +511,7 @@ where
 			RuntimeApi,
 			sc_network::NetworkWorker<Block, <Block as sp_runtime::traits::Block>::Hash>,
 		>(config),
-		sc_network::config::NetworkBackendType::Litep2p => {
-			new_full::<RuntimeApi, sc_network::Litep2pNetworkBackend>(config)
-		},
+		sc_network::config::NetworkBackendType::Litep2p =>
+			new_full::<RuntimeApi, sc_network::Litep2pNetworkBackend>(config),
 	}
 }

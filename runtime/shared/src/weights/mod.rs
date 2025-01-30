@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -17,15 +17,15 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // MIDDS
-pub mod midds_songs;
-pub mod midds_stakeholders;
-
 pub mod balances;
 pub mod identity;
 pub mod im_online;
-pub mod multisig;
+pub mod midds_musical_works;
+pub mod midds_stakeholders;
+// pub mod multisig;
 pub mod preimage;
 pub mod proxy;
+pub mod safe_mode;
 pub mod scheduler;
 pub mod session;
 pub mod sudo;

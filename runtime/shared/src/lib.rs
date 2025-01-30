@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -21,25 +21,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use allfeat_primitives::{Balance, BlockNumber};
-use frame::{
-	arithmetic::{Bounded, FixedPointNumber, Perbill, Perquintill},
-	deps::{
-		frame_support::weights::constants::ExtrinsicBaseWeight, frame_system::limits::BlockLength,
-		sp_core::U256,
-	},
-	prelude::*,
-	runtime::prelude::*,
+use frame_support::{
+	parameter_types,
+	sp_runtime::{traits::Bounded, FixedPointNumber, Perbill, Perquintill},
 };
-use polkadot_sdk::{
-	pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment},
-	polkadot_sdk_frame as frame,
-	sp_weights::{WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
-};
-
-use crate::currency::MICROALFT;
+use frame_system::limits::BlockLength;
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use sp_core::U256;
 
 pub mod elections;
-pub mod identity;
 
 pub mod currency;
 
@@ -75,31 +65,6 @@ pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
 	MaximumMultiplier,
 >;
 
-/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-/// node's balance type.
-///
-/// This should typically create a mapping between the following ranges:
-///   - [0, MAXIMUM_BLOCK_WEIGHT]
-///   - [Balance::min, Balance::max]
-///
-/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
-///   - Setting it to `0` will essentially disable the weight fee.
-///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
-pub struct WeightToFee;
-impl WeightToFeePolynomial for WeightToFee {
-	type Balance = Balance;
-	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		let p = 100 * MICROALFT; // Around 0.0001 ALFT
-		let q = Balance::from(ExtrinsicBaseWeight::get().ref_time());
-		smallvec::smallvec![WeightToFeeCoefficient {
-			degree: 1,
-			negative: false,
-			coeff_frac: Perbill::from_rational(p % q, q),
-			coeff_integer: p / q,
-		}]
-	}
-}
-
 /// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic
 /// will not be allowed to consume more than `AvailableBlockRatio - 1%`.
 pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
@@ -109,7 +74,7 @@ pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 /// Convert a balance to an unsigned 256-bit number, use in nomination pools.
 pub struct BalanceToU256;
-impl frame::traits::Convert<Balance, U256> for BalanceToU256 {
+impl frame_support::sp_runtime::traits::Convert<Balance, U256> for BalanceToU256 {
 	fn convert(n: Balance) -> U256 {
 		n.into()
 	}
@@ -117,9 +82,9 @@ impl frame::traits::Convert<Balance, U256> for BalanceToU256 {
 
 /// Convert an unsigned 256-bit number to balance, use in nomination pools.
 pub struct U256ToBalance;
-impl frame::traits::Convert<U256, Balance> for U256ToBalance {
+impl frame_support::sp_runtime::traits::Convert<U256, Balance> for U256ToBalance {
 	fn convert(n: U256) -> Balance {
-		use frame::traits::Defensive;
+		use frame_support::traits::Defensive;
 		n.try_into().defensive_unwrap_or(Balance::MAX)
 	}
 }

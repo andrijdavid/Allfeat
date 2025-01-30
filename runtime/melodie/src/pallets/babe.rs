@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -33,7 +33,7 @@ parameter_types! {
 	pub EpochDuration: u64 = shared_runtime::prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS as u64,
 		2 * MINUTES as u64,
-		"ALFT_EPOCH_DURATION"
+		"AFT_EPOCH_DURATION"
 	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 }
@@ -45,7 +45,7 @@ impl pallet_babe::Config for Runtime {
 	type DisabledValidators = Session;
 
 	type KeyOwnerProof = <Historical as frame_support::traits::KeyOwnerProofSystem<(
-		sp_runtime::KeyTypeId,
+		frame_support::sp_runtime::KeyTypeId,
 		pallet_babe::AuthorityId,
 	)>>::Proof;
 

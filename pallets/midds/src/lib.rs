@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -33,32 +33,36 @@ extern crate alloc;
 use crate::types::MiddsWrapper;
 use allfeat_support::traits::Midds;
 use alloc::boxed::Box;
-use frame::{
-	prelude::*,
-	traits::{fungible::MutateHold, Saturating},
-};
-pub use polkadot_sdk::polkadot_sdk_frame as frame;
+use frame_support::{pallet_prelude::*, sp_runtime::Saturating, traits::fungible::MutateHold};
+use frame_system::pallet_prelude::*;
 
 pub use pallet::*;
 
-#[frame::pallet]
+#[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use allfeat_primitives::Moment;
 	use allfeat_support::traits::Midds;
 	#[cfg(feature = "runtime-benchmarks")]
-	use frame::traits::fungible::Mutate;
-	use frame::{
-		deps::frame_support::PalletId,
-		traits::{fungible::Inspect, tokens::Precision},
+	use frame_support::traits::fungible::Mutate;
+	use frame_support::{
+		sp_runtime::traits::Saturating,
+		traits::{
+			fungible::{Inspect, MutateHold},
+			tokens::Precision,
+			Time,
+		},
+		PalletId,
 	};
 
+	pub type MomentOf<T, I> = <<T as Config<I>>::Timestamp as Time>::Moment;
 	pub type BalanceOf<T, I = ()> =
 		<<T as Config<I>>::Currency as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
 	pub type MiddsHashIdOf<T> = <T as frame_system::Config>::Hash;
 	pub type MiddsWrapperOf<T, I> = MiddsWrapper<
 		<T as frame_system::Config>::AccountId,
-		BlockNumberFor<T>,
+		MomentOf<T, I>,
 		<T as Config<I>>::MIDDS,
 	>;
 
@@ -68,27 +72,32 @@ pub mod pallet {
 	/// Default implementations of [`DefaultConfig`], which can be used to implement [`Config`].
 	pub mod config_preludes {
 		use super::*;
-		use polkadot_sdk::{frame_support::derive_impl, sp_core::ConstU64};
+		use frame_support::{derive_impl, parameter_types, traits::ConstU64};
 
 		pub struct TestDefaultConfig;
 
-		#[derive_impl(frame_system::config_preludes::TestDefaultConfig, no_aggregated_types)]
-		impl polkadot_sdk::frame_system::DefaultConfig for TestDefaultConfig {}
+		parameter_types! {
+			pub const UnregisterPeriod: Option<u64> = None;
+		}
 
-		#[polkadot_sdk::frame_support::register_default_impl(TestDefaultConfig)]
+		#[derive_impl(frame_system::config_preludes::TestDefaultConfig, no_aggregated_types)]
+		impl frame_system::DefaultConfig for TestDefaultConfig {}
+
+		#[frame_support::register_default_impl(TestDefaultConfig)]
 		impl DefaultConfig for TestDefaultConfig {
 			#[inject_runtime_type]
 			type RuntimeEvent = ();
 			#[inject_runtime_type]
 			type RuntimeHoldReason = ();
 			type ByteDepositCost = ConstU64<1>;
-			type UnregisterPeriod = ConstU32<7>;
+			type MaxDepositCost = ConstU64<10000>;
+			type UnregisterPeriod = UnregisterPeriod;
 			type WeightInfo = ();
 		}
 	}
 
 	#[pallet::config(with_default)]
-	pub trait Config<I: 'static = ()>: polkadot_sdk::frame_system::Config {
+	pub trait Config<I: 'static = ()>: frame_system::Config {
 		/// The MIDDS pallet instance pallet id
 		#[pallet::no_default]
 		#[pallet::constant]
@@ -97,12 +106,15 @@ pub mod pallet {
 		#[pallet::no_default_bounds]
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self, I>>
-			+ IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
+			+ IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		#[pallet::no_default]
 		#[cfg(not(feature = "runtime-benchmarks"))]
 		/// The currency trait used to manage MIDDS payments.
 		type Currency: MutateHold<Self::AccountId, Reason = Self::RuntimeHoldReason>;
+
+		#[pallet::no_default]
+		type Timestamp: Time<Moment = Moment>;
 
 		#[pallet::no_default]
 		#[cfg(feature = "runtime-benchmarks")]
@@ -117,7 +129,7 @@ pub mod pallet {
 
 		#[pallet::no_default]
 		/// The MIDDS actor that this pallet instance manage.
-		type MIDDS: Midds<Hash = <Self as polkadot_sdk::frame_system::Config>::Hashing>
+		type MIDDS: Midds<Hash = <Self as frame_system::Config>::Hashing>
 			+ Parameter
 			+ Member
 			+ MaxEncodedLen;
@@ -131,9 +143,17 @@ pub mod pallet {
 		/// The per-byte deposit cost when depositing MIDDS on-chain.
 		type ByteDepositCost: Get<BalanceOf<Self, I>>;
 
+		#[pallet::constant]
+		#[pallet::no_default_bounds]
+		/// The maximum cost a user can lock in collateral for this MIDDS entity.
+		/// This help to ensure we don't go higher than the max of the balance type, in such case
+		/// the user would be able to don't pay any fees higher than this value.
+		type MaxDepositCost: Get<BalanceOf<Self, I>>;
+
 		/// How many time the depositor have to wait to remove the MIDDS.
 		#[pallet::constant]
-		type UnregisterPeriod: Get<u32>;
+		#[pallet::no_default_bounds]
+		type UnregisterPeriod: Get<Option<MomentOf<Self, I>>>;
 
 		type WeightInfo: WeightInfo;
 	}
@@ -175,6 +195,8 @@ pub mod pallet {
 		MiddsDataAlreadyExist,
 		/// The specified MIDDS ID is not related to any pending MIDDS.
 		PendingMiddsNotFound,
+		/// Some data in the MIDDS aren't valid.
+		UnvalidMiddsData,
 		/// The lock-unregister period is still going.
 		UnregisterLocked,
 		/// The caller is not the provider of the MIDDS.
@@ -183,6 +205,9 @@ pub mod pallet {
 		CantReleaseFunds,
 		/// Funds can't be held at this moment.
 		CantHoldFunds,
+		/// The provider tried to register/update a MIDDS that exceed data size cost maximum
+		/// authorized.
+		OverflowedAuthorizedDataCost,
 	}
 
 	#[pallet::call(weight(<T as Config<I>>::WeightInfo))]
@@ -190,8 +215,9 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		pub fn register(origin: OriginFor<T>, midds: Box<T::MIDDS>) -> DispatchResult {
 			let provider = T::ProviderOrigin::ensure_origin(origin)?;
-			let midds =
-				MiddsWrapper::new(provider, <frame_system::Pallet<T>>::block_number(), *midds);
+			let midds = *midds;
+			ensure!(midds.is_valid(), Error::<T, I>::UnvalidMiddsData);
+			let midds = MiddsWrapper::new(provider, T::Timestamp::now(), midds);
 
 			Self::inner_register(midds)
 		}
@@ -212,7 +238,13 @@ pub mod pallet {
 						let old_hash = midds.midds.hash();
 						let old_cost = Self::calculate_midds_colateral(midds);
 						midds.midds.update_field(field_data)?;
+						ensure!(midds.midds.is_valid(), Error::<T, I>::UnvalidMiddsData);
 						let new_cost = Self::calculate_midds_colateral(midds);
+
+						ensure!(
+							new_cost <= T::MaxDepositCost::get(),
+							Error::<T, I>::OverflowedAuthorizedDataCost
+						);
 
 						match old_cost.cmp(&new_cost) {
 							core::cmp::Ordering::Greater => {
@@ -258,15 +290,17 @@ pub mod pallet {
 			if let Some(midds) = PendingMidds::<T, I>::get(midds_id) {
 				ensure!(midds.provider() == caller, Error::<T, I>::NotProvider);
 
-				let now = <frame_system::Pallet<T>>::block_number();
-				let spent = now - midds.registered_at();
-				ensure!(
-					spent
-						> polkadot_sdk::sp_runtime::SaturatedConversion::saturated_into(
-							T::UnregisterPeriod::get()
-						),
-					Error::<T, I>::UnregisterLocked
-				);
+				if T::UnregisterPeriod::get().is_some() {
+					let now = T::Timestamp::now();
+					let spent = now - midds.registered_at();
+					ensure!(
+						spent >
+							frame_support::sp_runtime::SaturatedConversion::saturated_into(
+								T::UnregisterPeriod::get().unwrap()
+							),
+						Error::<T, I>::UnregisterLocked
+					);
+				}
 
 				let actual_cost = Self::calculate_midds_colateral(&midds);
 				T::Currency::release(
@@ -290,9 +324,7 @@ pub mod pallet {
 }
 
 impl<T: Config<I>, I: 'static> Pallet<T, I> {
-	fn inner_register(
-		midds: MiddsWrapper<T::AccountId, BlockNumberFor<T>, T::MIDDS>,
-	) -> DispatchResult {
+	fn inner_register(midds: MiddsWrapperOf<T, I>) -> DispatchResult {
 		let midds_hash = midds.midds.hash();
 
 		// Verify that the same MIDDS hash isn't registered already.
@@ -303,6 +335,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 		// data colateral lock
 		let data_lock = Self::calculate_midds_colateral(&midds);
+		ensure!(data_lock <= T::MaxDepositCost::get(), Error::<T, I>::OverflowedAuthorizedDataCost);
 
 		T::Currency::hold(&HoldReason::MiddsRegistration.into(), &midds.provider(), data_lock)?;
 		PendingMidds::<T, I>::insert(midds_hash, midds.clone());

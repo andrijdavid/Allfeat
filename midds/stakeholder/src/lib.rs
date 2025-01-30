@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -24,9 +24,12 @@ use allfeat_support::{traits::Midds, types::IPINameNumber};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
-use frame::{prelude::*, traits::Hash as HashT};
+use frame_support::{
+	sp_runtime::{traits::Hash as HashT, DispatchError, RuntimeDebug},
+	traits::ConstU32,
+	BoundedVec,
+};
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadot_sdk::polkadot_sdk_frame as frame;
 use scale_info::TypeInfo;
 
 pub type NameLike = BoundedVec<u8, ConstU32<256>>;
@@ -67,6 +70,15 @@ where
 	fn is_complete(&self) -> bool {
 		self.ipi.is_some() &&
 			(self.nickname.is_some() || (self.last_name.is_some() || self.first_name.is_some()))
+	}
+
+	fn is_valid(&self) -> bool {
+		// IPI valid format check
+		if let Some(ipi) = &self.ipi {
+			return ipi.0 < 100_000_000_000 && ipi.0 > 1;
+		}
+
+		true
 	}
 
 	fn hash(&self) -> <Hash as HashT>::Output {

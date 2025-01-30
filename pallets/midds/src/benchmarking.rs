@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -21,11 +21,9 @@
 use super::*;
 use crate::Pallet as MiddsPallet;
 
-use frame::arithmetic::Bounded;
-use frame::arithmetic::SaturatedConversion;
-use frame::traits::fungible::Mutate;
+use frame_benchmarking::v2::*;
+use frame_support::{sp_runtime::traits::Bounded, traits::fungible::Mutate};
 use frame_system::RawOrigin;
-use polkadot_sdk::frame_benchmarking::v2::*;
 
 fn assert_last_event<T: Config<I>, I: 'static>(generic_event: <T as Config<I>>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
@@ -86,10 +84,6 @@ mod benchmarks {
 			RawOrigin::Signed(provider.clone()).into(),
 			Box::new(midds.clone()),
 		)?;
-
-		frame_system::Pallet::<T>::set_block_number(
-			(T::UnregisterPeriod::get() + 2).saturated_into(),
-		);
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(provider), midds.hash());

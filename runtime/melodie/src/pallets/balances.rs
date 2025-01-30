@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -18,10 +18,11 @@
 
 use crate::*;
 use frame_support::parameter_types;
-use shared_runtime::{currency::MILLIALFT, weights};
+use shared_runtime::{currency::AFT, weights};
+use sp_core::ConstU32;
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = MILLIALFT;
+	pub const ExistentialDeposit: Balance =  AFT / 10; // 0.1 AFT
 
 }
 
@@ -47,4 +48,5 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ConstU32<50>;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type DoneSlashHandler = ();
 }

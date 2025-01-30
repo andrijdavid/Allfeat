@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -17,16 +17,17 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use frame_support::parameter_types;
+use frame_support::{parameter_types, sp_runtime::traits::Verify, traits::ConstU32};
 use frame_system::EnsureRoot;
-use shared_runtime::{currency::deposit, identity::IdentityInfo, weights};
-use sp_runtime::traits::Verify;
+use pallet_identity::legacy::IdentityInfo;
+use shared_runtime::currency::deposit;
 
 parameter_types! {
-	// Minimum 4 MILLIALFT/byte
+	// Minimum 4 MILLIAFT/byte
 	pub const ByteDeposit: Balance = deposit(0, 1);
 	pub const BasicDeposit: Balance = deposit(1, 258);
 	pub const SubAccountDeposit: Balance = deposit(1, 53);
+	pub const UsernameDeposit: Balance = deposit(0, 32);
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
 	pub const MaxRegistrars: u32 = 20;
@@ -38,6 +39,8 @@ impl pallet_identity::Config for Runtime {
 	type BasicDeposit = BasicDeposit;
 	type ByteDeposit = ByteDeposit;
 	type SubAccountDeposit = SubAccountDeposit;
+	type UsernameDeposit = UsernameDeposit;
+	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRegistrars = MaxRegistrars;
 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
@@ -50,5 +53,6 @@ impl pallet_identity::Config for Runtime {
 	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
 	type MaxSuffixLength = ConstU32<7>;
 	type MaxUsernameLength = ConstU32<32>;
-	type WeightInfo = weights::identity::AllfeatWeight<Runtime>;
+	type WeightInfo = shared_runtime::weights::identity::AllfeatWeight<Runtime>;
+	//type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }

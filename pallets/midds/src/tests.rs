@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use super::frame;
 use allfeat_support::traits::Midds;
-use frame::testing_prelude::*;
-use polkadot_sdk::{sp_runtime::TokenError, sp_tracing};
+use frame_support::{pallet_prelude::TypedGet, sp_runtime::TokenError, testing_prelude::*};
 
 use crate::{mock::*, PendingMidds};
 

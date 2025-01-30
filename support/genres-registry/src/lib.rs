@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -20,8 +20,8 @@
 
 mod macros;
 
+use frame_support::sp_runtime::RuntimeDebug;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadot_sdk::sp_runtime::RuntimeDebug;
 use scale_info::TypeInfo;
 
 declare_music_genre! {

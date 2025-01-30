@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #[cfg(feature = "runtime-benchmarks")]
-polkadot_sdk::frame_benchmarking::define_benchmarks!(
+frame_benchmarking::define_benchmarks!(
 	[frame_benchmarking, BaselineBench::<Runtime>]
 	[pallet_babe, Babe]
 	[pallet_balances, Balances]
@@ -25,7 +25,7 @@ polkadot_sdk::frame_benchmarking::define_benchmarks!(
 	[pallet_identity, Identity]
 	[pallet_im_online, ImOnline]
 	[pallet_midds_stakeholders, Stakeholders]
-	[pallet_midds_songs, MusicalWorks]
+	[pallet_midds_musical_works, MusicalWorks]
 	[pallet_mmr, Mmr]
 	[pallet_multisig, Multisig]
 	[pallet_preimage, Preimage]
@@ -35,4 +35,5 @@ polkadot_sdk::frame_benchmarking::define_benchmarks!(
 	[frame_system, SystemBench::<Runtime>]
 	[pallet_timestamp, Timestamp]
 	[pallet_utility, Utility]
+	[pallet_safe_mode, SafeMode]
 );

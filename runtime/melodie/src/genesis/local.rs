@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 use super::genesis;
 use alloc::vec;
-use polkadot_sdk::sp_keyring::{AccountKeyring, Ed25519Keyring, Sr25519Keyring};
+use sp_keyring::{AccountKeyring, Ed25519Keyring, Sr25519Keyring};
 
 /// Return the development genesis config.
 

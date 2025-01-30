@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use polkadot_sdk::{
-	sp_core::H256,
-	sp_runtime::{
-		generic,
-		traits::{BlakeTwo256, IdentifyAccount, Verify},
-		MultiAddress, MultiSignature, OpaqueExtrinsic,
-	},
+use frame_support::sp_runtime::{
+	generic,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	MultiAddress, MultiSignature, OpaqueExtrinsic,
 };
+use sp_core::H256;
 
 /// An index to a block.
 pub type BlockNumber = u32;

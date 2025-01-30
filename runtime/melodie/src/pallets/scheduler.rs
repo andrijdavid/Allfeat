@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -17,12 +17,15 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use frame_support::{parameter_types, traits::EqualPrivilegeOnly};
+use frame_support::{
+	parameter_types,
+	traits::{ConstU32, EqualPrivilegeOnly},
+};
 use frame_system::EnsureRoot;
 use shared_runtime::weights;
 
 parameter_types! {
-	pub MaximumSchedulerWeight: frame_support::weights::Weight = sp_runtime::Perbill::from_percent(80) *
+	pub MaximumSchedulerWeight: frame_support::weights::Weight = frame_support::sp_runtime::Perbill::from_percent(80) *
 		RuntimeBlockWeights::get().max_block;
 }
 

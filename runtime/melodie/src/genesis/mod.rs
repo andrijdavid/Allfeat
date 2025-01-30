@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -22,14 +22,15 @@ extern crate alloc;
 use allfeat_primitives::{AccountId, Balance};
 use alloc::{vec, vec::Vec};
 use development::development_config_genesis;
+use frame_support::build_struct_json_patch;
 use local::local_config_genesis;
-use polkadot_sdk::sp_genesis_builder::PresetId;
-pub use polkadot_sdk::{
-	pallet_im_online::sr25519::AuthorityId as ImOnlineId,
-	sp_authority_discovery::AuthorityId as AuthorityDiscoveryId,
-	sp_consensus_babe::AuthorityId as BabeId, sp_consensus_grandpa::AuthorityId as GrandpaId,
-};
-use shared_runtime::currency::ALFT;
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use shared_runtime::currency::AFT;
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_consensus_babe::AuthorityId as BabeId;
+use sp_consensus_grandpa::AuthorityId as GrandpaId;
+use sp_genesis_builder::PresetId;
+use staging::staging_config_genesis;
 
 use crate::{
 	BabeConfig, BalancesConfig, RuntimeGenesisConfig, SessionConfig, SessionKeys, SudoConfig,
@@ -38,6 +39,7 @@ use crate::{
 
 mod development;
 mod local;
+mod staging;
 
 // Returns the genesis config template populated with given parameters.
 pub fn genesis(
@@ -60,9 +62,9 @@ pub fn genesis(
 		}
 	});
 
-	const ENDOWMENT: Balance = 10_000_000 * ALFT;
+	const ENDOWMENT: Balance = 300_000_000 * AFT;
 
-	let config = RuntimeGenesisConfig {
+	build_struct_json_patch!(RuntimeGenesisConfig {
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect::<Vec<_>>(),
 		},
@@ -87,21 +89,17 @@ pub fn genesis(
 				.collect::<Vec<_>>(),
 			non_authority_keys: Default::default(),
 		},
-		babe: BabeConfig { epoch_config: BABE_GENESIS_EPOCH_CONFIG, ..Default::default() },
+		babe: BabeConfig { epoch_config: BABE_GENESIS_EPOCH_CONFIG },
 		sudo: SudoConfig { key: Some(root_key) },
-		..Default::default()
-	};
-
-	serde_json::to_value(config).expect("Could not build genesis config.")
+	})
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
-	let patch = match id.try_into() {
-		Ok(polkadot_sdk::sp_genesis_builder::DEV_RUNTIME_PRESET) => development_config_genesis(),
-		Ok(polkadot_sdk::sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET) => {
-			local_config_genesis()
-		},
+	let patch = match id.as_ref() {
+		sp_genesis_builder::DEV_RUNTIME_PRESET => development_config_genesis(),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => local_config_genesis(),
+		"staging" => staging_config_genesis(),
 		_ => return None,
 	};
 	Some(
@@ -114,7 +112,8 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 /// List of supported presets.
 pub fn preset_names() -> Vec<PresetId> {
 	vec![
-		PresetId::from(polkadot_sdk::sp_genesis_builder::DEV_RUNTIME_PRESET),
-		PresetId::from(polkadot_sdk::sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
+		PresetId::from(sp_genesis_builder::DEV_RUNTIME_PRESET),
+		PresetId::from(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
+		PresetId::from("staging"),
 	]
 }

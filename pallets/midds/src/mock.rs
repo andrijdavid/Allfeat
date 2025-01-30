@@ -1,6 +1,6 @@
 // This file is part of Allfeat.
 
-// Copyright (C) 2022-2024 Allfeat.
+// Copyright (C) 2022-2025 Allfeat.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -18,15 +18,16 @@
 
 #![cfg(test)]
 
-use super::frame;
 use crate::{self as pallet_midds};
 use allfeat_support::traits::Midds;
-use frame::testing_prelude::*;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadot_sdk::{
-	frame_support::{self, PalletId},
-	pallet_balances, sp_io, sp_runtime,
+use frame_support::{
+	self, derive_impl,
+	sp_runtime::{traits::Hash as HashT, BuildStorage, DispatchResult, RuntimeDebug},
+	testing_prelude::*,
+	PalletId,
 };
+use frame_system::EnsureSigned;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -55,14 +56,16 @@ impl Midds for MockMiddsStruct {
 		true
 	}
 
-	fn hash(
-		&self,
-	) -> <<Test as frame_system::Config>::Hashing as sp_runtime::traits::Hash>::Output {
+	fn is_valid(&self) -> bool {
+		true // TODO write test for validity
+	}
+
+	fn hash(&self) -> <<Test as frame_system::Config>::Hashing as HashT>::Output {
 		let mut bytes = Vec::new();
 
 		bytes.extend_from_slice(&self.value.encode());
 
-		<<Test as frame_system::Config>::Hashing as sp_runtime::traits::Hash>::hash(&bytes)
+		<<Test as frame_system::Config>::Hashing as HashT>::hash(&bytes)
 	}
 
 	fn total_bytes(&self) -> u32 {
@@ -86,6 +89,7 @@ impl Midds for MockMiddsStruct {
 
 #[frame_support::runtime]
 mod runtime {
+
 	#[runtime::runtime]
 	#[runtime::derive(
 		RuntimeCall,
@@ -103,9 +107,12 @@ mod runtime {
 	pub type System = frame_system;
 
 	#[runtime::pallet_index(1)]
-	pub type Balances = pallet_balances;
+	pub type Time = pallet_timestamp;
 
 	#[runtime::pallet_index(2)]
+	pub type Balances = pallet_balances;
+
+	#[runtime::pallet_index(3)]
 	pub type MockMidds = pallet_midds;
 }
 
@@ -124,9 +131,13 @@ parameter_types! {
 	pub MiddsPalletId: PalletId = PalletId(*b"mckmidds");
 }
 
+#[derive_impl(pallet_timestamp::config_preludes::TestDefaultConfig)]
+impl pallet_timestamp::Config for Test {}
+
 #[derive_impl(pallet_midds::config_preludes::TestDefaultConfig)]
 impl pallet_midds::Config for Test {
 	type PalletId = MiddsPalletId;
+	type Timestamp = Time;
 	type Currency = Balances;
 	type MIDDS = MockMiddsStruct;
 	type ProviderOrigin = EnsureSigned<Self::AccountId>;
