@@ -79,16 +79,13 @@ output_path_for_pallet() {
   local pallet="$1"
   local normalized
   case "${pallet}" in
-    frame_system) echo "${RUNTIME_WEIGHTS_DIR}/system.rs" ;;
-    frame_benchmarking) echo "${RUNTIME_WEIGHTS_DIR}/benchmarking.rs" ;;
-    pallet_midds_musical_works) echo "${RUNTIME_WEIGHTS_DIR}/midds_musical_works.rs" ;;
-    pallet_midds_recordings) echo "${RUNTIME_WEIGHTS_DIR}/midds_recordings.rs" ;;
-    pallet_midds_releases) echo "${RUNTIME_WEIGHTS_DIR}/midds_releases.rs" ;;
-    *)
-      normalized="${pallet#pallet_}"
-      normalized="${normalized#frame_}"
-      echo "${RUNTIME_WEIGHTS_DIR}/${normalized}.rs"
-      ;;
+  frame_system) echo "${RUNTIME_WEIGHTS_DIR}/system.rs" ;;
+  frame_benchmarking) echo "${RUNTIME_WEIGHTS_DIR}/benchmarking.rs" ;;
+  *)
+    normalized="${pallet#pallet_}"
+    normalized="${normalized#frame_}"
+    echo "${RUNTIME_WEIGHTS_DIR}/${normalized}.rs"
+    ;;
   esac
 }
 
@@ -97,12 +94,12 @@ postprocess_weight_file() {
   local output_file="$2"
 
   case "${pallet}" in
-    pallet_ats)
-      perl -0pi -e 's/fn register\(\) -> Weight/fn register(_x: u32, ) -> Weight/g; s/fn update\(\) -> Weight/fn update(_x: u32, ) -> Weight/g' "${output_file}"
-      ;;
-    pallet_grandpa)
-      perl -0pi -e 's/component `x`/component `validator_count`/g; s/fn check_equivocation_proof\((?:_)?x: u32, \) -> Weight \{/fn report_equivocation(\n\t\tvalidator_count: u32,\n\t\t_max_nominators_per_validator: u32,\n\t) -> Weight {/g; s/saturating_mul\((?:_)?x.into\(\)\)/saturating_mul(validator_count.min(1).into())/g' "${output_file}"
-      ;;
+  pallet_ats)
+    perl -0pi -e 's/fn register\(\) -> Weight/fn register(_x: u32, ) -> Weight/g; s/fn update\(\) -> Weight/fn update(_x: u32, ) -> Weight/g' "${output_file}"
+    ;;
+  pallet_grandpa)
+    perl -0pi -e 's/component `x`/component `validator_count`/g; s/fn check_equivocation_proof\((?:_)?x: u32, \) -> Weight \{/fn report_equivocation(\n\t\tvalidator_count: u32,\n\t\t_max_nominators_per_validator: u32,\n\t) -> Weight {/g; s/saturating_mul\((?:_)?x.into\(\)\)/saturating_mul(validator_count.min(1).into())/g' "${output_file}"
+    ;;
   esac
 }
 
@@ -181,7 +178,7 @@ for pallet in "${TARGET_PALLETS[@]}"; do
   fi
 done
 
-elapsed="$(( $(date +%s) - start_epoch ))"
+elapsed="$(($(date +%s) - start_epoch))"
 log "TESTNET summary: success=${success_count}, failed=${fail_count}, total=${#TARGET_PALLETS[@]}, duration=${elapsed}s"
 
 if [[ "${fail_count}" -gt 0 ]]; then

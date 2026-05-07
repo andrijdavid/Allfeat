@@ -21,7 +21,6 @@ use std::{env, path::PathBuf};
 use crate::{
     chain_specs::{ChainSpec, IdentifyVariant},
     cli::{Cli, Subcommand},
-    service,
 };
 
 #[cfg(feature = "allfeat-runtime")]
@@ -195,10 +194,7 @@ pub fn run() -> sc_cli::Result<()> {
                 );
 
                 let task_manager: sc_service::TaskManager =
-                    dispatch_on_runtime!(chain_spec => |RuntimeApi| {
-                        service::new_full_from_network_cfg::<RuntimeApi>(config)
-                            .map_err(|e| sc_cli::Error::from(*e))
-                    })?;
+                    dispatch_on_runtime_full!(chain_spec, config)?;
 
                 if let Some(path) = database_source.path() {
                     StorageMonitorService::try_spawn(

@@ -57,7 +57,13 @@ impl OnUnbalanced<Credit<AccountId, Balances>> for DealWithFees {
 }
 
 parameter_types! {
-    pub const TransactionByteFee: Balance = 10 * MICROAFT;
+    // Per `../midds-sdk/docs/economics.md` §6: TransactionByteFee divided by
+    // 10 (10 µAFT/B → 1 µAFT/B). Unblocks low-cost mass ingest of
+    // ~200-byte MIDDS payloads — at the previous rate the *length* fee
+    // dwarfed the bond on a typical MusicalWork. WeightFeeFactor stays
+    // unchanged: weight-based fees still dominate the cost of complex
+    // extrinsics, where the ÷10 doesn't help anyway.
+    pub const TransactionByteFee: Balance = MICROAFT;
     pub const OperationalFeeMultiplier: u8 = 5;
     pub const WeightFeeFactor: Balance = 10 * MILLIAFT;
 }

@@ -144,6 +144,70 @@ impl sp_consensus_grandpa::GrandpaApi<Block> for Runtime {
         }
     }
 
+    impl midds_runtime_api::MiddsApi<Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>
+        for Runtime
+    {
+        fn lookup_by_identifier(identifier: midds_traits::Iswc) -> Vec<midds_traits::MiddsId> {
+            // Multi-claim: one identifier may fan out to several records.
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::lookup_by_identifier(identifier)
+        }
+
+        fn lookup_by_identifier_paged(
+            identifier: midds_traits::Iswc,
+            after: Option<midds_traits::MiddsId>,
+            limit: u32,
+        ) -> Vec<midds_traits::MiddsId> {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::lookup_by_identifier_paged(
+                identifier, after, limit,
+            )
+        }
+
+        fn count_by_identifier(identifier: midds_traits::Iswc) -> u32 {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::count_by_identifier(identifier)
+        }
+
+        fn get(id: midds_traits::MiddsId) -> Option<midds_types::MusicalWork> {
+            pallet_midds::Items::<Runtime, pallet_midds::Instance1>::get(id)
+        }
+
+        fn deposit_info(
+            id: midds_traits::MiddsId,
+        ) -> Option<midds_runtime_api::DepositInfoOf<AccountId, Balance>> {
+            pallet_midds::DepositInfo::<Runtime, pallet_midds::Instance1>::get(id).map(|info| {
+                midds_runtime_api::DepositInfoOf {
+                    depositor: info.depositor,
+                    sponsor_layer: midds_runtime_api::BondLayerOf {
+                        payer: info.sponsor_layer.payer,
+                        amount: info.sponsor_layer.amount,
+                        base: info.sponsor_layer.base,
+                    },
+                    owner_layer: info.owner_layer.map(|layer| midds_runtime_api::BondLayerOf {
+                        payer: layer.payer,
+                        amount: layer.amount,
+                        base: layer.base,
+                    }),
+                    finalized: info.finalized,
+                }
+            })
+        }
+
+        fn current_deposit_price(size: u32) -> Balance {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::current_deposit_price(size)
+        }
+
+        fn current_multipliers() -> (sp_runtime::FixedU128, sp_runtime::FixedU128) {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::current_multipliers()
+        }
+
+        fn weekly_target() -> u32 {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::weekly_target()
+        }
+
+        fn weekly_actual() -> u32 {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::weekly_actual()
+        }
+    }
+
     impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentCallApi<Block, Balance, RuntimeCall>
         for Runtime
     {

@@ -22,9 +22,6 @@ frame_benchmarking::define_benchmarks!(
     [pallet_balances, Balances]
     [pallet_grandpa, Grandpa]
     [pallet_ats, Ats]
-    [pallet_midds_musical_works, MusicalWorks]
-    [pallet_midds_recordings, Recordings]
-    [pallet_midds_releases, Releases]
     [pallet_meta_tx, MetaTx]
     [pallet_multisig, Multisig]
     [pallet_preimage, Preimage]
@@ -38,4 +35,5 @@ frame_benchmarking::define_benchmarks!(
     [pallet_verify_signature, VerifySignature]
     [pallet_transaction_payment, TransactionPayment]
     [pallet_safe_mode, SafeMode]
+    [pallet_midds, MusicalWorks]
 );

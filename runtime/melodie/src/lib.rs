@@ -57,8 +57,6 @@ pub use constants::time::*;
 mod pallets;
 pub use pallets::*;
 mod genesis;
-mod midds;
-pub use midds::*;
 mod ats;
 pub use ats::*;
 mod weights;
@@ -75,10 +73,16 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("allfeat-melodie-3"),
     impl_name: alloc::borrow::Cow::Borrowed("allfeatlabs-melodie-3"),
     authoring_version: 1,
-    spec_version: 201,
+    spec_version: 202,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 2,
+    // Bumped — the `pallet_midds` extrinsic indices and storage layout
+    // changed substantially (multi-claim `IdentifierClaims`, payload-hash
+    // index, premium-aware `Deposit` struct, two-variant `force_remove_*`,
+    // new `remove_own` / `finalize` calls). Per `../midds-sdk/docs/economics.md`
+    // decision #11, no migration is required: melodie testnet is reset on
+    // deploy, mainnet doesn't host the pallet.
+    transaction_version: 3,
     system_version: 1,
 };
 
@@ -227,15 +231,10 @@ mod runtime {
 
     // Allfeat related
 
-    #[runtime::pallet_index(102)]
-    pub type MusicalWorks = pallet_midds<Instance2>;
-
-    #[runtime::pallet_index(103)]
-    pub type Recordings = pallet_midds<Instance3>;
-
-    #[runtime::pallet_index(104)]
-    pub type Releases = pallet_midds<Instance4>;
-
     #[runtime::pallet_index(105)]
     pub type Ats = pallet_ats;
+
+    // MIDDS — one pallet_midds instance per supported MIDDS type.
+    #[runtime::pallet_index(106)]
+    pub type MusicalWorks = pallet_midds<Instance1>;
 }

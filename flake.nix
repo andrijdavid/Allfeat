@@ -39,6 +39,7 @@
               openssl
               pkg-config
               just
+              nodejs-slim
 
               # Polkadot SDK
               psvm

@@ -47,7 +47,7 @@ pub struct FullDeps<C, P, BE> {
     pub grandpa: GrandpaDeps<BE>,
 }
 
-/// Instantiate all RPC extensions.
+/// Instantiate the base set of RPC extensions shared by every runtime.
 pub fn create_full<C, P, BE>(
     deps: FullDeps<C, P, BE>,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
@@ -100,6 +100,55 @@ where
             shared_voter_state,
             justification_stream,
             finality_provider,
+        )
+        .into_rpc(),
+    )?;
+
+    Ok(module)
+}
+
+/// Register the MIDDS MusicalWorks RPC handler on top of [`create_full`].
+///
+/// Only runtimes hosting `pallet-midds` (e.g. Melodie) satisfy the bound; the
+/// mainnet runtime keeps using the bare [`create_full`].
+pub fn create_full_with_midds<C, P, BE>(
+    deps: FullDeps<C, P, BE>,
+) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
+where
+    BE: 'static + sc_client_api::backend::Backend<Block>,
+    BE::State: sc_client_api::backend::StateBackend<Hashing>,
+    C: 'static
+        + Send
+        + Sync
+        + sc_client_api::AuxStore
+        + sc_client_api::backend::StorageProvider<Block, BE>
+        + sc_client_api::BlockchainEvents<Block>
+        + sc_client_api::UsageProvider<Block>
+        + sc_client_api::BlockBackend<Block>
+        + sp_api::CallApiAt<Block>
+        + sp_api::ProvideRuntimeApi<Block>
+        + sp_blockchain::HeaderBackend<Block>
+        + sp_blockchain::HeaderMetadata<Block, Error = sp_blockchain::Error>,
+    C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
+        + sp_block_builder::BlockBuilder<Block>
+        + substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
+        + midds_runtime_api::MiddsApi<
+            Block,
+            midds_traits::Iswc,
+            midds_types::MusicalWork,
+            AccountId,
+            Balance,
+        >,
+    P: 'static + Sync + Send + sc_transaction_pool_api::TransactionPool<Block = Block>,
+{
+    use midds_rpc::{MiddsRpc, MiddsRpcApiServer};
+
+    let client = deps.client.clone();
+    let mut module = create_full(deps)?;
+
+    module.merge(
+        MiddsRpc::<C, Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>::new(
+            client,
         )
         .into_rpc(),
     )?;

@@ -4,7 +4,6 @@ members = [
 	"node",
 	"runtime/*",
 	"primitives",
-	"pallets/midds",
 	"pallets/validators",
 	"pallets/token-allocation",
 ]
@@ -77,12 +76,21 @@ zeroize = { opt-level = 3 }
 # Allfeat (wasm)
 allfeat-primitives = { version = "1.0.0", default-features = false, path = "./primitives" }
 pallet-ats = { version = "0.4.0", default-features = false }
-pallet-midds = { version = "1.0.0-dev", default-features = false, path = "./pallets/midds" }
 pallet-token-allocation = { version = "1.0.0", default-features = false, path = "./pallets/token-allocation" }
 
-allfeat-midds = { package = "allfeat-midds-v2", version = "1.2.0", default-features = false }
-
 pallet-validators = { version = "1.0.0", default-features = false, path = "./pallets/validators" }
+
+# MIDDS SDK (wasm)
+midds-traits = { git = "https://github.com/Allfeat/midds-sdk.git", branch = "master", default-features = false }
+midds-types = { git = "https://github.com/Allfeat/midds-sdk.git", branch = "master", default-features = false }
+midds-runtime-api = { git = "https://github.com/Allfeat/midds-sdk.git", branch = "master", default-features = false }
+pallet-midds = { git = "https://github.com/Allfeat/midds-sdk.git", branch = "master", default-features = false }
+
+# MIDDS SDK (client)
+midds-rpc = { git = "https://github.com/Allfeat/midds-sdk.git", branch = "master" }
+
+# MIDDS SDK (test-only, std)
+midds-fixtures = { git = "https://github.com/Allfeat/midds-sdk.git", branch = "master" }
 
 # polkadot-sdk
 sp-core = { version = "40.0.0", default-features = false }

@@ -56,6 +56,12 @@ sp-timestamp = { workspace = true, default-features = true }
 pallet-transaction-payment-rpc = { workspace = true, default-features = true }
 substrate-frame-rpc-system = { workspace = true, default-features = true }
 
+# MIDDS
+midds-rpc = { workspace = true }
+midds-runtime-api = { workspace = true, features = ["std"] }
+midds-types = { workspace = true, features = ["std", "serde"] }
+midds-traits = { workspace = true, features = ["std", "serde"] }
+
 # These dependencies are used for runtime benchmarking
 frame-benchmarking-cli = { workspace = true, default-features = true }
 

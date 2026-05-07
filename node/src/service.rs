@@ -109,6 +109,31 @@ impl<Api> RuntimeApiCollection for Api where
 {
 }
 
+/// Optional MIDDS APIs implemented only by runtimes that host `pallet-midds`.
+///
+/// Kept distinct from [`RuntimeApiCollection`] so runtimes without MIDDS
+/// (e.g. the mainnet runtime today) can still satisfy the shared bounds.
+pub trait MiddsRuntimeApiCollection:
+    midds_runtime_api::MiddsApi<
+        Block,
+        midds_traits::Iswc,
+        midds_types::MusicalWork,
+        AccountId,
+        Balance,
+    >
+{
+}
+impl<Api> MiddsRuntimeApiCollection for Api where
+    Api: midds_runtime_api::MiddsApi<
+            Block,
+            midds_traits::Iswc,
+            midds_types::MusicalWork,
+            AccountId,
+            Balance,
+        >
+{
+}
+
 /// Creates the inherent data providers used by both import queue and block authoring.
 fn create_inherent_data_providers(
     slot_duration: sp_consensus_aura::SlotDuration,
@@ -228,18 +253,33 @@ where
 }
 
 /// Build the RPC extensions handler closure.
-fn build_rpc_extensions<RuntimeApi>(
+///
+/// `create_rpc` is the per-runtime entry point: callers pass
+/// [`crate::rpc::create_full`] for runtimes without MIDDS, or
+/// [`crate::rpc::create_full_with_midds`] for MIDDS-aware runtimes (Melodie).
+fn build_rpc_extensions<RuntimeApi, CreateRpc>(
     client: Arc<FullClient<RuntimeApi>>,
     transaction_pool: Arc<
         sc_transaction_pool::TransactionPoolHandle<Block, FullClient<RuntimeApi>>,
     >,
     backend: Arc<FullBackend>,
     grandpa_link: &GrandpaLinkHalf<RuntimeApi>,
+    create_rpc: CreateRpc,
 ) -> Box<dyn Fn(SubscriptionTaskExecutor) -> Result<jsonrpsee::RpcModule<()>, ServiceError>>
 where
     RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi>>,
     RuntimeApi: Send + Sync + 'static,
     RuntimeApi::RuntimeApi: RuntimeApiCollection,
+    CreateRpc: Fn(
+            crate::rpc::FullDeps<
+                FullClient<RuntimeApi>,
+                sc_transaction_pool::TransactionPoolHandle<Block, FullClient<RuntimeApi>>,
+                FullBackend,
+            >,
+        ) -> Result<jsonrpsee::RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
+        + Send
+        + Sync
+        + 'static,
 {
     let justification_stream = grandpa_link.justification_stream();
     let shared_authority_set = grandpa_link.shared_authority_set().clone();
@@ -261,17 +301,30 @@ where
                 finality_provider: finality_proof_provider.clone(),
             },
         };
-        crate::rpc::create_full(deps).map_err(sc_service::Error::Application)
+        create_rpc(deps).map_err(sc_service::Error::Application)
     })
 }
 
 /// Builds a new service for a full client.
-fn new_full<RuntimeApi, N>(config: Configuration) -> Result<TaskManager, Box<ServiceError>>
+fn new_full<RuntimeApi, N, CreateRpc>(
+    config: Configuration,
+    create_rpc: CreateRpc,
+) -> Result<TaskManager, Box<ServiceError>>
 where
     N: sc_network::NetworkBackend<Block, <Block as sp_runtime::traits::Block>::Hash>,
     RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi>>,
     RuntimeApi: Send + Sync + 'static,
     RuntimeApi::RuntimeApi: RuntimeApiCollection,
+    CreateRpc: Fn(
+            crate::rpc::FullDeps<
+                FullClient<RuntimeApi>,
+                sc_transaction_pool::TransactionPoolHandle<Block, FullClient<RuntimeApi>>,
+                FullBackend,
+            >,
+        ) -> Result<jsonrpsee::RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
+        + Send
+        + Sync
+        + 'static,
 {
     let sc_service::PartialComponents {
         client,
@@ -367,6 +420,7 @@ where
         transaction_pool.clone(),
         backend.clone(),
         &extra_parts.consensus_parts.grandpa_link,
+        create_rpc,
     );
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
@@ -481,9 +535,38 @@ where
         sc_network::config::NetworkBackendType::Libp2p => new_full::<
             RuntimeApi,
             sc_network::NetworkWorker<Block, <Block as sp_runtime::traits::Block>::Hash>,
-        >(config),
+            _,
+        >(config, crate::rpc::create_full),
         sc_network::config::NetworkBackendType::Litep2p => {
-            new_full::<RuntimeApi, sc_network::Litep2pNetworkBackend>(config)
+            new_full::<RuntimeApi, sc_network::Litep2pNetworkBackend, _>(
+                config,
+                crate::rpc::create_full,
+            )
+        }
+    }
+}
+
+/// Variant of [`new_full_from_network_cfg`] for runtimes that host
+/// `pallet-midds` and therefore expose [`midds_runtime_api::MiddsApi`].
+pub fn new_full_from_network_cfg_with_midds<RuntimeApi>(
+    config: Configuration,
+) -> Result<TaskManager, Box<ServiceError>>
+where
+    RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi>>,
+    RuntimeApi: Send + Sync + 'static,
+    RuntimeApi::RuntimeApi: RuntimeApiCollection + MiddsRuntimeApiCollection,
+{
+    match config.network.network_backend {
+        sc_network::config::NetworkBackendType::Libp2p => new_full::<
+            RuntimeApi,
+            sc_network::NetworkWorker<Block, <Block as sp_runtime::traits::Block>::Hash>,
+            _,
+        >(config, crate::rpc::create_full_with_midds),
+        sc_network::config::NetworkBackendType::Litep2p => {
+            new_full::<RuntimeApi, sc_network::Litep2pNetworkBackend, _>(
+                config,
+                crate::rpc::create_full_with_midds,
+            )
         }
     }
 }

@@ -44,7 +44,6 @@ fn print_fee_report() {
         use frame_system::WeightInfo as _;
         use pallet_ats::WeightInfo as _;
         use pallet_balances::WeightInfo as _;
-        use pallet_midds::WeightInfo as _;
         use pallet_multisig::WeightInfo as _;
         use pallet_preimage::WeightInfo as _;
         use pallet_proxy::WeightInfo as _;
@@ -65,18 +64,9 @@ fn print_fee_report() {
         type SudoW = weights::sudo::AllfeatWeight<Runtime>;
         type ValidatorsW = weights::validators::AllfeatWeight<Runtime>;
         type AtsW = weights::ats::AllfeatWeight<Runtime>;
-        type MiddsMusicalWorksW = weights::midds_musical_works::AllfeatWeight<Runtime>;
-        type MiddsRecordingsW = weights::midds_recordings::AllfeatWeight<Runtime>;
-        type MiddsReleasesW = weights::midds_releases::AllfeatWeight<Runtime>;
 
         let ats_base_deposit = crate::BaseDeposit::get();
         let ats_version_deposit = crate::VersionDeposit::get();
-        let midds_byte_deposit = crate::musical_works::ByteDepositCost::get();
-
-        // Estimated encoded sizes for MIDDS data
-        let musical_work_size: u32 = 500;
-        let recording_size: u32 = 400;
-        let release_size: u32 = 600;
 
         let extrinsics = vec![
             // System
@@ -244,51 +234,6 @@ fn print_fee_report() {
                 encoded_len: 100,
                 deposit: 0,
             },
-            // MIDDS - MusicalWorks
-            ExtrinsicFeeInfo {
-                pallet: "MIDDS (Works)",
-                extrinsic: "register",
-                weight: MiddsMusicalWorksW::register(musical_work_size),
-                encoded_len: musical_work_size + 100,
-                deposit: midds_byte_deposit.saturating_mul(musical_work_size as u128),
-            },
-            ExtrinsicFeeInfo {
-                pallet: "MIDDS (Works)",
-                extrinsic: "unregister",
-                weight: MiddsMusicalWorksW::unregister(),
-                encoded_len: 100,
-                deposit: 0,
-            },
-            // MIDDS - Recordings
-            ExtrinsicFeeInfo {
-                pallet: "MIDDS (Rec.)",
-                extrinsic: "register",
-                weight: MiddsRecordingsW::register(recording_size),
-                encoded_len: recording_size + 100,
-                deposit: midds_byte_deposit.saturating_mul(recording_size as u128),
-            },
-            ExtrinsicFeeInfo {
-                pallet: "MIDDS (Rec.)",
-                extrinsic: "unregister",
-                weight: MiddsRecordingsW::unregister(),
-                encoded_len: 100,
-                deposit: 0,
-            },
-            // MIDDS - Releases
-            ExtrinsicFeeInfo {
-                pallet: "MIDDS (Rel.)",
-                extrinsic: "register",
-                weight: MiddsReleasesW::register(release_size),
-                encoded_len: release_size + 100,
-                deposit: midds_byte_deposit.saturating_mul(release_size as u128),
-            },
-            ExtrinsicFeeInfo {
-                pallet: "MIDDS (Rel.)",
-                extrinsic: "unregister",
-                weight: MiddsReleasesW::unregister(),
-                encoded_len: 100,
-                deposit: 0,
-            },
         ];
 
         let estimates: Vec<FeeEstimate> = extrinsics
@@ -335,28 +280,6 @@ fn print_fee_report() {
                 balance_to_aft(ats_create_est.total_max),
                 DEFAULT_AFT_PRICE_USD
             ))
-        );
-
-        println!();
-        println!("=== MIDDS Registration Deposit Summary ===");
-        println!(
-            "  ByteDepositCost:              {} / byte",
-            format_balance(midds_byte_deposit)
-        );
-        println!(
-            "  MusicalWork (~{} bytes):     {}",
-            musical_work_size,
-            format_balance(midds_byte_deposit.saturating_mul(musical_work_size as u128))
-        );
-        println!(
-            "  Recording (~{} bytes):       {}",
-            recording_size,
-            format_balance(midds_byte_deposit.saturating_mul(recording_size as u128))
-        );
-        println!(
-            "  Release (~{} bytes):         {}",
-            release_size,
-            format_balance(midds_byte_deposit.saturating_mul(release_size as u128))
         );
         println!();
     });

@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+mod midds;
 mod multisig;
 mod proxy;
 mod scheduler;
@@ -37,6 +38,7 @@ mod validators;
 
 // External required imports
 pub use balances::*;
+pub use midds::*;
 pub use session::*;
 pub use system::*;
 pub use transaction_payment::*;

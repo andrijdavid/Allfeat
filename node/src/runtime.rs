@@ -153,6 +153,53 @@ macro_rules! dispatch_async_run {
     }};
 }
 
+/// Variant of [`dispatch_on_runtime!`] for the full-node entry point.
+///
+/// Unlike [`dispatch_on_runtime!`], this macro picks a different entry point
+/// per runtime so the right RPC surface is wired in: Melodie also exposes the
+/// MIDDS RPC, while the mainnet runtime keeps the bare RPC set.
+#[macro_export]
+macro_rules! dispatch_on_runtime_full {
+    ($chain_spec:expr, $config:expr) => {{
+        use $crate::chain_specs::IdentifyVariant;
+
+        #[cfg(feature = "melodie-runtime")]
+        if $chain_spec.is_melodie() {
+            return $crate::service::new_full_from_network_cfg_with_midds::<
+                $crate::service::MelodieRuntimeApi,
+            >($config)
+            .map_err(|e| sc_cli::Error::from(*e));
+        }
+
+        #[cfg(feature = "allfeat-runtime")]
+        if $chain_spec.is_allfeat() {
+            return $crate::service::new_full_from_network_cfg::<
+                $crate::service::AllfeatRuntimeApi,
+            >($config)
+            .map_err(|e| sc_cli::Error::from(*e));
+        }
+
+        // Single-runtime fallbacks for custom chain specs.
+        #[cfg(all(feature = "melodie-runtime", not(feature = "allfeat-runtime")))]
+        {
+            return $crate::service::new_full_from_network_cfg_with_midds::<
+                $crate::service::MelodieRuntimeApi,
+            >($config)
+            .map_err(|e| sc_cli::Error::from(*e));
+        }
+
+        #[cfg(all(feature = "allfeat-runtime", not(feature = "melodie-runtime")))]
+        {
+            return $crate::service::new_full_from_network_cfg::<
+                $crate::service::AllfeatRuntimeApi,
+            >($config)
+            .map_err(|e| sc_cli::Error::from(*e));
+        }
+
+        Err(sc_cli::Error::from($crate::runtime::NO_RUNTIME_ERR))
+    }};
+}
+
 /// Variant of [`dispatch_on_runtime!`] for benchmark partial components.
 ///
 /// This macro creates partial components for storage benchmarking operations.
