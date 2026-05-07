@@ -159,6 +159,7 @@ macro_rules! dispatch_async_run {
 /// per runtime so the right RPC surface is wired in: Melodie also exposes the
 /// MIDDS RPC, while the mainnet runtime keeps the bare RPC set.
 #[macro_export]
+#[rustfmt::skip]
 macro_rules! dispatch_on_runtime_full {
     ($chain_spec:expr, $config:expr) => {{
         use $crate::chain_specs::IdentifyVariant;

@@ -114,13 +114,7 @@ impl<Api> RuntimeApiCollection for Api where
 /// Kept distinct from [`RuntimeApiCollection`] so runtimes without MIDDS
 /// (e.g. the mainnet runtime today) can still satisfy the shared bounds.
 pub trait MiddsRuntimeApiCollection:
-    midds_runtime_api::MiddsApi<
-        Block,
-        midds_traits::Iswc,
-        midds_types::MusicalWork,
-        AccountId,
-        Balance,
-    >
+    midds_runtime_api::MiddsApi<Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>
 {
 }
 impl<Api> MiddsRuntimeApiCollection for Api where
@@ -557,11 +551,13 @@ where
     RuntimeApi::RuntimeApi: RuntimeApiCollection + MiddsRuntimeApiCollection,
 {
     match config.network.network_backend {
-        sc_network::config::NetworkBackendType::Libp2p => new_full::<
-            RuntimeApi,
-            sc_network::NetworkWorker<Block, <Block as sp_runtime::traits::Block>::Hash>,
-            _,
-        >(config, crate::rpc::create_full_with_midds),
+        sc_network::config::NetworkBackendType::Libp2p => {
+            new_full::<
+                RuntimeApi,
+                sc_network::NetworkWorker<Block, <Block as sp_runtime::traits::Block>::Hash>,
+                _,
+            >(config, crate::rpc::create_full_with_midds)
+        }
         sc_network::config::NetworkBackendType::Litep2p => {
             new_full::<RuntimeApi, sc_network::Litep2pNetworkBackend, _>(
                 config,

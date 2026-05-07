@@ -118,11 +118,11 @@ impl pallet_midds::BenchmarkHelper<midds_types::MusicalWork, Signature, AccountI
         // guard for benchmarks that queue multiple records back-to-back
         // (notably `force_remove_many`).
         let title_len = (size as usize).min(midds_types::TITLE_MAX_LEN as usize);
-        let title = BoundedVec::try_from(vec![b'a'; title_len.max(1)])
+        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len.max(1)])
             .expect("title clamped to TITLE_MAX_LEN");
         let iswc = bench_iswc_from_size(size);
         let ipi = BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal");
-        let creators = BoundedVec::try_from(vec![Creator {
+        let creators = BoundedVec::try_from(alloc::vec![Creator {
             role: CreatorRole::Composer,
             id: CreatorId::Ipi(ipi),
         }])
@@ -151,7 +151,7 @@ impl pallet_midds::BenchmarkHelper<midds_types::MusicalWork, Signature, AccountI
     fn create_signature(entropy: &[u8], msg: &[u8]) -> (Signature, AccountId) {
         use sp_runtime::traits::IdentifyAccount as _;
         let path = core::str::from_utf8(entropy).unwrap_or("bench");
-        let uri = alloc::format!("//{}", path);
+        let uri = alloc::format!("//{path}");
         let public = sp_io::crypto::sr25519_generate(0.into(), Some(uri.into_bytes()));
         let account: AccountId = MultiSigner::Sr25519(public).into_account();
         let sig = sp_io::crypto::sr25519_sign(0.into(), &public, msg)

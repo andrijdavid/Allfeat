@@ -128,9 +128,9 @@ fn measure(item: &MusicalWork) -> FeeBreakdown {
     // analytical column accordingly reads "-" until benchmarks land and
     // the runtime swaps in real numbers; the report still prints the bond
     // and length-fee columns truthfully, which is what tuning depends on.
-    let weight_fee = <WeightToFee as WeightToFeeTrait>::weight_to_fee(&<() as WeightInfo>::deposit(
-        encoded_size,
-    ));
+    let weight_fee = <WeightToFee as WeightToFeeTrait>::weight_to_fee(
+        &<() as WeightInfo>::deposit(encoded_size),
+    );
     let length_fee = TransactionByteFee::get().saturating_mul(encoded_call_len as Balance);
     FeeBreakdown {
         encoded_size,
@@ -142,8 +142,7 @@ fn measure(item: &MusicalWork) -> FeeBreakdown {
 }
 
 fn bond_for_size(size: u32) -> Balance {
-    let base =
-        <Runtime as pallet_midds::Config<pallet_midds::Instance1>>::DepositBase::get();
+    let base = <Runtime as pallet_midds::Config<pallet_midds::Instance1>>::DepositBase::get();
     let per_byte =
         <Runtime as pallet_midds::Config<pallet_midds::Instance1>>::DepositPerByte::get();
     base.saturating_add(per_byte.saturating_mul(size as Balance))
@@ -310,7 +309,9 @@ fn distribution_summary(mut totals: Vec<Balance>) -> DistributionSummary {
     totals.sort_unstable();
     let n = totals.len();
     let pick = |q: f64| -> Balance {
-        let idx = ((q * n as f64).ceil() as usize).saturating_sub(1).min(n - 1);
+        let idx = ((q * n as f64).ceil() as usize)
+            .saturating_sub(1)
+            .min(n - 1);
         totals[idx]
     };
     DistributionSummary {
@@ -414,15 +415,16 @@ fn remove_own_refunds_base_premium_goes_to_treasury() {
     let depositor = account(1);
     let mut ext = build_ext(&[depositor.clone()]);
     ext.execute_with(|| {
-        pallet_midds::FastMultiplier::<Runtime, pallet_midds::Instance1>::put(
-            FixedU128::from_u32(2),
-        );
+        pallet_midds::FastMultiplier::<Runtime, pallet_midds::Instance1>::put(FixedU128::from_u32(
+            2,
+        ));
 
         let item = pathological::min_size_musical_work();
         let base = bond_for_size(item.encoded_size() as u32);
         let total = base.saturating_mul(2);
         let free_before = <Balances as Inspect<AccountId>>::balance(&depositor);
-        let treasury_before = <Balances as Inspect<AccountId>>::balance(&MiddsTreasuryAccount::get());
+        let treasury_before =
+            <Balances as Inspect<AccountId>>::balance(&MiddsTreasuryAccount::get());
 
         pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::deposit(
             RuntimeOrigin::signed(depositor.clone()),
@@ -444,7 +446,8 @@ fn remove_own_refunds_base_premium_goes_to_treasury() {
         .expect("remove_own");
 
         let free_after = <Balances as Inspect<AccountId>>::balance(&depositor);
-        let treasury_after = <Balances as Inspect<AccountId>>::balance(&MiddsTreasuryAccount::get());
+        let treasury_after =
+            <Balances as Inspect<AccountId>>::balance(&MiddsTreasuryAccount::get());
 
         let premium = total - base;
         assert_eq!(

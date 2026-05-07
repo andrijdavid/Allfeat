@@ -56,8 +56,8 @@ pub use constants::time::*;
 
 mod pallets;
 pub use pallets::*;
-mod genesis;
 mod ats;
+mod genesis;
 pub use ats::*;
 mod weights;
 

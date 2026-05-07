@@ -36,9 +36,7 @@ impl<T> ArgumentsFactory<(), AccountId> for PalletTreasuryArguments<T>
 where
     T: Mutate<AccountId> + Inspect<AccountId>,
 {
-    fn create_asset_kind(_seed: u32) -> () {
-        ()
-    }
+    fn create_asset_kind(_seed: u32) {}
     fn create_beneficiary(seed: [u8; 32]) -> AccountId {
         let account = AccountId::from_entropy(&mut seed.as_slice()).unwrap();
         <T as Mutate<_>>::mint_into(&account, <T as Inspect<_>>::minimum_balance()).unwrap();
