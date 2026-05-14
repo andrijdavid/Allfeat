@@ -20,7 +20,7 @@ use crate::*;
 use frame_support::parameter_types;
 
 parameter_types! {
-    pub const MaxValidators: u32 = 5;
+    pub const MaxValidators: u32 = 12;
 }
 
 impl pallet_validators::Config for Runtime {
