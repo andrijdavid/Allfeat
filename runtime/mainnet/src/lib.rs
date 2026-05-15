@@ -56,6 +56,7 @@ pub use constants::time::*;
 mod pallets;
 pub use pallets::*;
 mod genesis;
+mod migrations;
 
 mod weights;
 
@@ -71,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("allfeat"),
     impl_name: alloc::borrow::Cow::Borrowed("allfeat-allfeat"),
     authoring_version: 1,
-    spec_version: 202,
+    spec_version: 203,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -146,6 +147,7 @@ pub type RuntimeExecutive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    migrations::Migrations,
 >;
 
 #[frame_support::runtime]

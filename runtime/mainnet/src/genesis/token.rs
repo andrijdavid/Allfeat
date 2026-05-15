@@ -108,14 +108,21 @@ pub fn tokenomics(sudo_key: AccountId, num_validators: u128) -> TokenGenesis {
                 ),
                 // Envelope name: Public2
                 // Total amount: 75 000 000 AFT
-                // 0% Upfront rate, 18 months of cliff
+                // 0% Upfront rate, 12 months of cliff
                 // Vesting on 12 months
+                //
+                // NOTE: this was historically (and erroneously) set to
+                // `18 * MONTHS`, contradicting the signed contributor
+                // contracts (12-month cliff). The live mainnet is corrected
+                // by the `FixPublic2Cliff` runtime migration; this genesis
+                // value is fixed here so any fresh chain is correct from
+                // block 0 and does not reintroduce the bug.
                 (
                     EnvelopeId::Public2,
                     EnvelopeConfig {
                         total_cap: 75_000_000 * AFT,
                         upfront_rate: Percent::from_percent(0),
-                        cliff: 18 * MONTHS,
+                        cliff: 12 * MONTHS,
                         vesting_duration: 12 * MONTHS,
                         unique_beneficiary: None,
                     },
