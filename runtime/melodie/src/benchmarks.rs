@@ -36,4 +36,5 @@ frame_benchmarking::define_benchmarks!(
     [pallet_transaction_payment, TransactionPayment]
     [pallet_safe_mode, SafeMode]
     [pallet_midds, MusicalWorks]
+    [pallet_midds, Recordings]
 );

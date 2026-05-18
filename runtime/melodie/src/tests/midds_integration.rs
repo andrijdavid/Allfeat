@@ -562,3 +562,74 @@ fn multi_claim_lookup_returns_all_ids() {
         assert_eq!(ids, vec![0, 1]);
     });
 }
+
+// -----------------------------------------------------------------------------
+// Instance2 — `Recordings`. End-to-end smoke test for the second
+// `pallet_midds` instance at the runtime level: a `Recording` deposits,
+// lands in the Instance2 storage (not Instance1), is reverse-indexed by its
+// ISRC — the exact surface `RecordingApi::lookup_by_identifier` and the
+// `midds_recordings_lookupByIdentifier` RPC serve — and locks a bond under
+// the instance-scoped `HoldReason`.
+// -----------------------------------------------------------------------------
+
+#[test]
+fn recording_instance2_deposit_indexes_and_holds_bond() {
+    use frame_support::BoundedVec;
+    use midds_types::{PartyId, Recording, RecordingV1, WorkRef};
+
+    let depositor = account(1);
+    let mut ext = build_ext(&[depositor.clone()]);
+    ext.execute_with(|| {
+        let isrc: midds_traits::Isrc =
+            BoundedVec::try_from(b"USRC17607839".to_vec()).expect("12-byte ISRC literal");
+        let recording = Recording::V1(RecordingV1 {
+            isrc: isrc.clone(),
+            title: BoundedVec::try_from(b"Smoke".to_vec()).expect("non-empty title"),
+            title_aliases: Default::default(),
+            artist: PartyId::Ipi(
+                BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal"),
+            ),
+            // `WorkRef::Midds` is format-valid without a companion record.
+            work: WorkRef::Midds(0),
+            genres: Default::default(),
+            record_year: None,
+            version_type: None,
+            performers: Default::default(),
+            producers: Default::default(),
+            duration: None,
+            bpm: None,
+            key: None,
+            places: None,
+            contributors: Default::default(),
+            offchain_extension: None,
+        });
+
+        pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::deposit(
+            RuntimeOrigin::signed(depositor.clone()),
+            recording.clone(),
+        )
+        .expect("Recording deposit on melodie-runtime Instance2");
+
+        assert_eq!(
+            pallet_midds::Items::<Runtime, pallet_midds::Instance2>::get(0),
+            Some(recording),
+            "Recording must be stored under the Instance2 map"
+        );
+        assert!(
+            pallet_midds::Items::<Runtime, pallet_midds::Instance1>::get(0).is_none(),
+            "Instance2 deposit must not leak into the MusicalWorks instance"
+        );
+
+        assert_eq!(
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::lookup_by_identifier(isrc),
+            vec![0],
+            "ISRC reverse index backs RecordingApi::lookup_by_identifier"
+        );
+
+        let held = <Balances as InspectHold<AccountId>>::balance_on_hold(
+            &pallet_midds::HoldReason::<pallet_midds::Instance2>::Deposit.into(),
+            &depositor,
+        );
+        assert!(held > 0, "Instance2 deposit must lock a bond");
+    });
+}

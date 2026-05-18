@@ -73,15 +73,19 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("allfeat-melodie-3"),
     impl_name: alloc::borrow::Cow::Borrowed("allfeatlabs-melodie-3"),
     authoring_version: 1,
-    spec_version: 202,
+    spec_version: 203,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
-    // Bumped — the `pallet_midds` extrinsic indices and storage layout
-    // changed substantially (multi-claim `IdentifierClaims`, payload-hash
-    // index, premium-aware `Deposit` struct, two-variant `force_remove_*`,
-    // new `remove_own` / `finalize` calls). Per `../midds-sdk/docs/economics.md`
-    // decision #11, no migration is required: melodie testnet is reset on
-    // deploy, mainnet doesn't host the pallet.
+    // 203 — added the `Recordings` `pallet_midds<Instance2>` (pallet index
+    // 107) and its `RecordingApi` runtime API. Additive (new pallet at a
+    // fresh index), so existing signed-transaction encoding is unchanged
+    // and `transaction_version` stays at 3. 202 had bumped the `pallet_midds`
+    // extrinsic indices and storage layout substantially (multi-claim
+    // `IdentifierClaims`, payload-hash index, premium-aware `Deposit`,
+    // two-variant `force_remove_*`, `remove_own` / `finalize`). Per
+    // `../midds-sdk/docs/economics.md` decision #11 no migration is
+    // required: melodie testnet is reset on deploy, mainnet doesn't host
+    // the pallet.
     transaction_version: 3,
     system_version: 1,
 };
@@ -237,4 +241,7 @@ mod runtime {
     // MIDDS — one pallet_midds instance per supported MIDDS type.
     #[runtime::pallet_index(106)]
     pub type MusicalWorks = pallet_midds<Instance1>;
+
+    #[runtime::pallet_index(107)]
+    pub type Recordings = pallet_midds<Instance2>;
 }

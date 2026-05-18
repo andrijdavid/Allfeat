@@ -114,14 +114,32 @@ impl<Api> RuntimeApiCollection for Api where
 /// Kept distinct from [`RuntimeApiCollection`] so runtimes without MIDDS
 /// (e.g. the mainnet runtime today) can still satisfy the shared bounds.
 pub trait MiddsRuntimeApiCollection:
-    midds_runtime_api::MiddsApi<Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>
+    midds_runtime_api::MusicalWorkApi<
+        Block,
+        midds_traits::Iswc,
+        midds_types::MusicalWork,
+        AccountId,
+        Balance,
+    > + midds_runtime_api::RecordingApi<
+        Block,
+        midds_traits::Isrc,
+        midds_types::Recording,
+        AccountId,
+        Balance,
+    >
 {
 }
 impl<Api> MiddsRuntimeApiCollection for Api where
-    Api: midds_runtime_api::MiddsApi<
+    Api: midds_runtime_api::MusicalWorkApi<
             Block,
             midds_traits::Iswc,
             midds_types::MusicalWork,
+            AccountId,
+            Balance,
+        > + midds_runtime_api::RecordingApi<
+            Block,
+            midds_traits::Isrc,
+            midds_types::Recording,
             AccountId,
             Balance,
         >
@@ -541,7 +559,8 @@ where
 }
 
 /// Variant of [`new_full_from_network_cfg`] for runtimes that host
-/// `pallet-midds` and therefore expose [`midds_runtime_api::MiddsApi`].
+/// `pallet-midds` and therefore expose the per-kind MIDDS runtime APIs
+/// (`midds_runtime_api::MusicalWorkApi` + `midds_runtime_api::RecordingApi`).
 pub fn new_full_from_network_cfg_with_midds<RuntimeApi>(
     config: Configuration,
 ) -> Result<TaskManager, Box<ServiceError>>

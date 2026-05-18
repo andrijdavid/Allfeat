@@ -144,7 +144,7 @@ impl sp_consensus_grandpa::GrandpaApi<Block> for Runtime {
         }
     }
 
-    impl midds_runtime_api::MiddsApi<Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>
+    impl midds_runtime_api::MusicalWorkApi<Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>
         for Runtime
     {
         fn lookup_by_identifier(identifier: midds_traits::Iswc) -> Vec<midds_traits::MiddsId> {
@@ -205,6 +205,73 @@ impl sp_consensus_grandpa::GrandpaApi<Block> for Runtime {
 
         fn weekly_actual() -> u32 {
             pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::weekly_actual()
+        }
+    }
+
+    // Recording — `pallet_midds<Instance2>`, ISRC-keyed. Distinct runtime-API
+    // trait (`RecordingApi`) because Substrate keys runtime-API dispatch on
+    // the trait name; same method bodies as `MusicalWorkApi`, just bound to
+    // `Instance2` / `midds_types::Recording`.
+    impl midds_runtime_api::RecordingApi<Block, midds_traits::Isrc, midds_types::Recording, AccountId, Balance>
+        for Runtime
+    {
+        fn lookup_by_identifier(identifier: midds_traits::Isrc) -> Vec<midds_traits::MiddsId> {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::lookup_by_identifier(identifier)
+        }
+
+        fn lookup_by_identifier_paged(
+            identifier: midds_traits::Isrc,
+            after: Option<midds_traits::MiddsId>,
+            limit: u32,
+        ) -> Vec<midds_traits::MiddsId> {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::lookup_by_identifier_paged(
+                identifier, after, limit,
+            )
+        }
+
+        fn count_by_identifier(identifier: midds_traits::Isrc) -> u32 {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::count_by_identifier(identifier)
+        }
+
+        fn get(id: midds_traits::MiddsId) -> Option<midds_types::Recording> {
+            pallet_midds::Items::<Runtime, pallet_midds::Instance2>::get(id)
+        }
+
+        fn deposit_info(
+            id: midds_traits::MiddsId,
+        ) -> Option<midds_runtime_api::DepositInfoOf<AccountId, Balance>> {
+            pallet_midds::DepositInfo::<Runtime, pallet_midds::Instance2>::get(id).map(|info| {
+                midds_runtime_api::DepositInfoOf {
+                    depositor: info.depositor,
+                    sponsor_layer: midds_runtime_api::BondLayerOf {
+                        payer: info.sponsor_layer.payer,
+                        amount: info.sponsor_layer.amount,
+                        base: info.sponsor_layer.base,
+                    },
+                    owner_layer: info.owner_layer.map(|layer| midds_runtime_api::BondLayerOf {
+                        payer: layer.payer,
+                        amount: layer.amount,
+                        base: layer.base,
+                    }),
+                    finalized: info.finalized,
+                }
+            })
+        }
+
+        fn current_deposit_price(size: u32) -> Balance {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::current_deposit_price(size)
+        }
+
+        fn current_multipliers() -> (sp_runtime::FixedU128, sp_runtime::FixedU128) {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::current_multipliers()
+        }
+
+        fn weekly_target() -> u32 {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::weekly_target()
+        }
+
+        fn weekly_actual() -> u32 {
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance2>::weekly_actual()
         }
     }
 

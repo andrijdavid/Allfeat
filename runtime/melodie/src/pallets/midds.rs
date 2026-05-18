@@ -143,20 +143,8 @@ impl pallet_midds::BenchmarkHelper<midds_types::MusicalWork, Signature, AccountI
         })
     }
 
-    /// Generate a deterministic `(MultiSignature, AccountId)` pair valid for
-    /// `msg`. Uses `sp_io::crypto::sr25519_generate` so the signing key lives
-    /// in the benchmark keystore — no `sp-core/full_crypto` requirement, which
-    /// keeps the runtime build `no_std`-clean. `entropy` becomes a SecretUri
-    /// derivation path so distinct entropy inputs yield distinct signers.
     fn create_signature(entropy: &[u8], msg: &[u8]) -> (Signature, AccountId) {
-        use sp_runtime::traits::IdentifyAccount as _;
-        let path = core::str::from_utf8(entropy).unwrap_or("bench");
-        let uri = alloc::format!("//{path}");
-        let public = sp_io::crypto::sr25519_generate(0.into(), Some(uri.into_bytes()));
-        let account: AccountId = MultiSigner::Sr25519(public).into_account();
-        let sig = sp_io::crypto::sr25519_sign(0.into(), &public, msg)
-            .expect("keystore available in benchmark context; qed");
-        (Signature::Sr25519(sig), account)
+        bench_create_signature(entropy, msg)
     }
 }
 
@@ -175,4 +163,124 @@ fn bench_iswc_from_size(size: u32) -> midds_traits::Iswc {
         n /= 10;
     }
     BoundedVec::try_from(bytes.to_vec()).expect("11-byte literal fits ISWC bound")
+}
+
+/// Generate a deterministic `(MultiSignature, AccountId)` pair valid for
+/// `msg`, shared by every per-instance [`pallet_midds::BenchmarkHelper`]
+/// (the on-behalf signature flow is identical across MIDDS kinds). Uses
+/// `sp_io::crypto::sr25519_generate` so the signing key lives in the
+/// benchmark keystore — no `sp-core/full_crypto` requirement, which keeps
+/// the runtime build `no_std`-clean. `entropy` becomes a SecretUri
+/// derivation path so distinct entropy inputs yield distinct signers.
+#[cfg(feature = "runtime-benchmarks")]
+fn bench_create_signature(entropy: &[u8], msg: &[u8]) -> (Signature, AccountId) {
+    use sp_runtime::traits::IdentifyAccount as _;
+    let path = core::str::from_utf8(entropy).unwrap_or("bench");
+    let uri = alloc::format!("//{path}");
+    let public = sp_io::crypto::sr25519_generate(0.into(), Some(uri.into_bytes()));
+    let account: AccountId = MultiSigner::Sr25519(public).into_account();
+    let sig = sp_io::crypto::sr25519_sign(0.into(), &public, msg)
+        .expect("keystore available in benchmark context; qed");
+    (Signature::Sr25519(sig), account)
+}
+
+// MIDDS Instance2 — `Recording` (ISRC-keyed). Same economic model as
+// Instance1: V1 deliberately shares one bond/window/multiplier calibration
+// across MIDDS kinds (see `../midds-sdk/docs/economics.md`), so the
+// `parameter_types!` above are reused verbatim. Only the stored payload and
+// the benchmark helper differ.
+impl pallet_midds::Config<pallet_midds::Instance2> for Runtime {
+    type Currency = Balances;
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type Midds = midds_types::Recording;
+    type ProviderOrigin = EnsureSigned<AccountId>;
+    type ForceOrigin = EnsureRoot<AccountId>;
+    type OffchainSignature = Signature;
+    type Signer = MultiSigner;
+    type TreasuryAccount = MiddsTreasuryAccount;
+    type DepositBase = MiddsDepositBase;
+    type DepositPerByte = MiddsDepositPerByte;
+    type CommitmentWindow = MiddsCommitmentWindow;
+    type MaxFinalizationsPerBlock = MiddsMaxFinalizationsPerBlock;
+    type MaxRemovalsPerCall = MiddsMaxRemovalsPerCall;
+    type BlocksPerDay = MiddsBlocksPerDay;
+    type FastTargetPerBlock = MiddsFastTargetPerBlock;
+    type FastAdjustmentRate = MiddsFastAdjustmentRate;
+    type FastMultiplierMin = MiddsFastMultiplierMin;
+    type FastMultiplierMax = MiddsFastMultiplierMax;
+    type SlowTargetPerWindow = MiddsSlowTargetPerWindow;
+    type SlowAdjustmentRate = MiddsSlowAdjustmentRate;
+    type SlowMultiplierMin = MiddsSlowMultiplierMin;
+    type SlowMultiplierMax = MiddsSlowMultiplierMax;
+    type WeightInfo = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = RecordingsBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct RecordingsBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_midds::BenchmarkHelper<midds_types::Recording, Signature, AccountId>
+    for RecordingsBenchmarkHelper
+{
+    fn bench_instance(size: u32) -> midds_types::Recording {
+        use frame_support::BoundedVec;
+        use midds_types::{PartyId, RecordingV1, WorkRef};
+
+        // Minimal valid RecordingV1; the size hint is carried by the title
+        // (bounded at TITLE_MAX_LEN), padded to approximate the requested
+        // encoded length. The ISRC is derived from `size` so distinct sizes
+        // yield distinct payloads — required by the post-economics
+        // `PayloadHashes` guard for benchmarks that queue several records
+        // back-to-back (notably `force_remove_many`).
+        let title_len = (size as usize).min(midds_types::TITLE_MAX_LEN as usize);
+        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len.max(1)])
+            .expect("title clamped to TITLE_MAX_LEN");
+        let isrc = bench_isrc_from_size(size);
+        let ipi = BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal");
+
+        midds_types::Recording::V1(RecordingV1 {
+            isrc,
+            title,
+            title_aliases: Default::default(),
+            artist: PartyId::Ipi(ipi),
+            // `WorkRef::Midds` has no format constraint (the referenced id
+            // need not exist for a format-only on-chain check), keeping the
+            // synthetic payload admissible without a companion MusicalWork.
+            work: WorkRef::Midds(0),
+            genres: Default::default(),
+            record_year: None,
+            version_type: None,
+            performers: Default::default(),
+            producers: Default::default(),
+            duration: None,
+            bpm: None,
+            key: None,
+            places: None,
+            contributors: Default::default(),
+            offchain_extension: None,
+        })
+    }
+
+    fn create_signature(entropy: &[u8], msg: &[u8]) -> (Signature, AccountId) {
+        bench_create_signature(entropy, msg)
+    }
+}
+
+/// Build a structurally-valid 12-byte ISRC literal from a numeric seed —
+/// `US` (uppercase country) + `AAA` (alphanumeric registrant) + 7 digits
+/// carrying the seed in the low decimal positions. The pallet only enforces
+/// format (charset + length), not the IFPI structure beyond that, so this
+/// synthetic ISRC is admissible for benchmarking.
+#[cfg(feature = "runtime-benchmarks")]
+fn bench_isrc_from_size(size: u32) -> midds_traits::Isrc {
+    use frame_support::BoundedVec;
+    let mut bytes = *b"USAAA0000000";
+    let mut n = size;
+    for slot in bytes[5..].iter_mut().rev() {
+        *slot = b'0' + (n % 10) as u8;
+        n /= 10;
+    }
+    BoundedVec::try_from(bytes.to_vec()).expect("12-byte literal fits ISRC bound")
 }

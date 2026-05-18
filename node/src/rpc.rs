@@ -107,7 +107,8 @@ where
     Ok(module)
 }
 
-/// Register the MIDDS MusicalWorks RPC handler on top of [`create_full`].
+/// Register the MIDDS RPC handlers (MusicalWorks + Recordings) on top of
+/// [`create_full`].
 ///
 /// Only runtimes hosting `pallet-midds` (e.g. Melodie) satisfy the bound; the
 /// mainnet runtime keeps using the bare [`create_full`].
@@ -132,22 +133,37 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
         + sp_block_builder::BlockBuilder<Block>
         + substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
-        + midds_runtime_api::MiddsApi<
+        + midds_runtime_api::MusicalWorkApi<
             Block,
             midds_traits::Iswc,
             midds_types::MusicalWork,
             AccountId,
             Balance,
+        > + midds_runtime_api::RecordingApi<
+            Block,
+            midds_traits::Isrc,
+            midds_types::Recording,
+            AccountId,
+            Balance,
         >,
     P: 'static + Sync + Send + sc_transaction_pool_api::TransactionPool<Block = Block>,
 {
-    use midds_rpc::{MiddsRpc, MiddsRpcApiServer};
+    // One handler per MIDDS instance. The methods are namespaced
+    // (`midds_musicalWorks_*` / `midds_recordings_*`) inside `midds-rpc`, so
+    // merging both modules into the same RPC surface never collides.
+    use midds_rpc::{MusicalWorkRpc, MusicalWorkRpcApiServer, RecordingRpc, RecordingRpcApiServer};
 
     let client = deps.client.clone();
     let mut module = create_full(deps)?;
 
     module.merge(
-        MiddsRpc::<C, Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>::new(
+        MusicalWorkRpc::<C, Block, midds_traits::Iswc, midds_types::MusicalWork, AccountId, Balance>::new(
+            client.clone(),
+        )
+        .into_rpc(),
+    )?;
+    module.merge(
+        RecordingRpc::<C, Block, midds_traits::Isrc, midds_types::Recording, AccountId, Balance>::new(
             client,
         )
         .into_rpc(),
