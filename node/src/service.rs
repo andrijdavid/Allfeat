@@ -126,6 +126,12 @@ pub trait MiddsRuntimeApiCollection:
         midds_types::Recording,
         AccountId,
         Balance,
+    > + midds_runtime_api::ReleaseApi<
+        Block,
+        midds_traits::Upc,
+        midds_types::Release,
+        AccountId,
+        Balance,
     >
 {
 }
@@ -140,6 +146,12 @@ impl<Api> MiddsRuntimeApiCollection for Api where
             Block,
             midds_traits::Isrc,
             midds_types::Recording,
+            AccountId,
+            Balance,
+        > + midds_runtime_api::ReleaseApi<
+            Block,
+            midds_traits::Upc,
+            midds_types::Release,
             AccountId,
             Balance,
         >

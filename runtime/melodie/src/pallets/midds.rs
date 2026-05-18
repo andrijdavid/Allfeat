@@ -284,3 +284,114 @@ fn bench_isrc_from_size(size: u32) -> midds_traits::Isrc {
     }
     BoundedVec::try_from(bytes.to_vec()).expect("12-byte literal fits ISRC bound")
 }
+
+// MIDDS Instance3 — `Release` (UPC/EAN-keyed). Completes the V1 MIDDS type
+// surface. Same economic model as Instance1/2: V1 deliberately shares one
+// bond/window/multiplier calibration across MIDDS kinds (see
+// `../midds-sdk/docs/economics.md`), so the `parameter_types!` above are
+// reused verbatim. Only the stored payload and the benchmark helper differ.
+impl pallet_midds::Config<pallet_midds::Instance3> for Runtime {
+    type Currency = Balances;
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type Midds = midds_types::Release;
+    type ProviderOrigin = EnsureSigned<AccountId>;
+    type ForceOrigin = EnsureRoot<AccountId>;
+    type OffchainSignature = Signature;
+    type Signer = MultiSigner;
+    type TreasuryAccount = MiddsTreasuryAccount;
+    type DepositBase = MiddsDepositBase;
+    type DepositPerByte = MiddsDepositPerByte;
+    type CommitmentWindow = MiddsCommitmentWindow;
+    type MaxFinalizationsPerBlock = MiddsMaxFinalizationsPerBlock;
+    type MaxRemovalsPerCall = MiddsMaxRemovalsPerCall;
+    type BlocksPerDay = MiddsBlocksPerDay;
+    type FastTargetPerBlock = MiddsFastTargetPerBlock;
+    type FastAdjustmentRate = MiddsFastAdjustmentRate;
+    type FastMultiplierMin = MiddsFastMultiplierMin;
+    type FastMultiplierMax = MiddsFastMultiplierMax;
+    type SlowTargetPerWindow = MiddsSlowTargetPerWindow;
+    type SlowAdjustmentRate = MiddsSlowAdjustmentRate;
+    type SlowMultiplierMin = MiddsSlowMultiplierMin;
+    type SlowMultiplierMax = MiddsSlowMultiplierMax;
+    type WeightInfo = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ReleasesBenchmarkHelper;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct ReleasesBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_midds::BenchmarkHelper<midds_types::Release, Signature, AccountId>
+    for ReleasesBenchmarkHelper
+{
+    fn bench_instance(size: u32) -> midds_types::Release {
+        use frame_support::BoundedVec;
+        use midds_types::{
+            Country, PartyId, RecordingRef, ReleaseDate, ReleaseFormat, ReleasePackaging,
+            ReleaseStatus, ReleaseType, ReleaseV1,
+        };
+
+        // Minimal valid ReleaseV1; the size hint is carried by the title
+        // (bounded at TITLE_MAX_LEN), padded to approximate the requested
+        // encoded length. The UPC is derived from `size` so distinct sizes
+        // yield distinct payloads — required by the post-economics
+        // `PayloadHashes` guard for benchmarks that queue several records
+        // back-to-back (notably `force_remove_many`).
+        let title_len = (size as usize).min(midds_types::TITLE_MAX_LEN as usize);
+        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len.max(1)])
+            .expect("title clamped to TITLE_MAX_LEN");
+        let upc = bench_upc_from_size(size);
+        let ipi = BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal");
+        // The tracklist is mandatory non-empty. `RecordingRef::Midds` has no
+        // format constraint (the referenced id need not exist for a
+        // format-only on-chain check), keeping the synthetic payload
+        // admissible without a companion Recording.
+        let tracks = BoundedVec::try_from(alloc::vec![RecordingRef::Midds(0)])
+            .expect("single track fits TRACKS_MAX");
+
+        midds_types::Release::V1(ReleaseV1 {
+            upc,
+            title,
+            title_aliases: Default::default(),
+            artist: PartyId::Ipi(ipi),
+            tracks,
+            producers: Default::default(),
+            status: ReleaseStatus::Official,
+            release_date: ReleaseDate {
+                year: 2024,
+                month: 1,
+                day: 1,
+            },
+            country: Country::Fr,
+            distributor_name: BoundedVec::try_from(b"Believe".to_vec())
+                .expect("non-empty distributor name"),
+            release_type: ReleaseType::Album,
+            format: ReleaseFormat::Cd,
+            // `None` packaging = digital, the format-valid default.
+            packaging: ReleasePackaging::None,
+            cover_contributors: Default::default(),
+            offchain_extension: None,
+        })
+    }
+
+    fn create_signature(entropy: &[u8], msg: &[u8]) -> (Signature, AccountId) {
+        bench_create_signature(entropy, msg)
+    }
+}
+
+/// Build a structurally-valid 13-digit EAN-13/GTIN-13 literal from a numeric
+/// seed. The pallet only enforces format (charset + length: 12 or 13 ASCII
+/// digits), not the GS1 mod-10 check digit, so this synthetic UPC is
+/// admissible for benchmarking.
+#[cfg(feature = "runtime-benchmarks")]
+fn bench_upc_from_size(size: u32) -> midds_traits::Upc {
+    use frame_support::BoundedVec;
+    let mut bytes = *b"0000000000000";
+    let mut n = size;
+    for slot in bytes.iter_mut().rev() {
+        *slot = b'0' + (n % 10) as u8;
+        n /= 10;
+    }
+    BoundedVec::try_from(bytes.to_vec()).expect("13-byte literal fits UPC bound")
+}

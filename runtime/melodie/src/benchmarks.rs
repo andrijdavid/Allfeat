@@ -37,4 +37,5 @@ frame_benchmarking::define_benchmarks!(
     [pallet_safe_mode, SafeMode]
     [pallet_midds, MusicalWorks]
     [pallet_midds, Recordings]
+    [pallet_midds, Releases]
 );

@@ -73,19 +73,21 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("allfeat-melodie-3"),
     impl_name: alloc::borrow::Cow::Borrowed("allfeatlabs-melodie-3"),
     authoring_version: 1,
-    spec_version: 203,
+    spec_version: 204,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
-    // 203 — added the `Recordings` `pallet_midds<Instance2>` (pallet index
-    // 107) and its `RecordingApi` runtime API. Additive (new pallet at a
-    // fresh index), so existing signed-transaction encoding is unchanged
-    // and `transaction_version` stays at 3. 202 had bumped the `pallet_midds`
-    // extrinsic indices and storage layout substantially (multi-claim
-    // `IdentifierClaims`, payload-hash index, premium-aware `Deposit`,
-    // two-variant `force_remove_*`, `remove_own` / `finalize`). Per
-    // `../midds-sdk/docs/economics.md` decision #11 no migration is
-    // required: melodie testnet is reset on deploy, mainnet doesn't host
-    // the pallet.
+    // 204 — added the `Releases` `pallet_midds<Instance3>` (pallet index
+    // 108) and its `ReleaseApi` runtime API, completing the V1 MIDDS type
+    // surface (`MusicalWork` / `Recording` / `Release`). Additive (new
+    // pallet at a fresh index), so existing signed-transaction encoding is
+    // unchanged and `transaction_version` stays at 3. 203 had added the
+    // `Recordings` `pallet_midds<Instance2>` (pallet index 107) the same
+    // way; 202 had bumped the `pallet_midds` extrinsic indices and storage
+    // layout substantially (multi-claim `IdentifierClaims`, payload-hash
+    // index, premium-aware `Deposit`, two-variant `force_remove_*`,
+    // `remove_own` / `finalize`). Per `../midds-sdk/docs/economics.md`
+    // decision #11 no migration is required: melodie testnet is reset on
+    // deploy, mainnet doesn't host the pallet.
     transaction_version: 3,
     system_version: 1,
 };
@@ -244,4 +246,7 @@ mod runtime {
 
     #[runtime::pallet_index(107)]
     pub type Recordings = pallet_midds<Instance2>;
+
+    #[runtime::pallet_index(108)]
+    pub type Releases = pallet_midds<Instance3>;
 }

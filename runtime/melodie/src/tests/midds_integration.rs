@@ -633,3 +633,86 @@ fn recording_instance2_deposit_indexes_and_holds_bond() {
         assert!(held > 0, "Instance2 deposit must lock a bond");
     });
 }
+
+// -----------------------------------------------------------------------------
+// Instance3 — `Releases`. End-to-end smoke test for the third (and final V1)
+// `pallet_midds` instance: a `Release` deposits, lands in the Instance3
+// storage (not Instance1/2), is reverse-indexed by its UPC — the exact
+// surface `ReleaseApi::lookup_by_identifier` and the
+// `midds_releases_lookupByIdentifier` RPC serve — and locks a bond under the
+// instance-scoped `HoldReason`.
+// -----------------------------------------------------------------------------
+
+#[test]
+fn release_instance3_deposit_indexes_and_holds_bond() {
+    use frame_support::BoundedVec;
+    use midds_types::{
+        Country, PartyId, RecordingRef, Release, ReleaseDate, ReleaseFormat, ReleasePackaging,
+        ReleaseStatus, ReleaseType, ReleaseV1,
+    };
+
+    let depositor = account(1);
+    let mut ext = build_ext(&[depositor.clone()]);
+    ext.execute_with(|| {
+        let upc: midds_traits::Upc =
+            BoundedVec::try_from(b"4006381333931".to_vec()).expect("13-byte UPC literal");
+        let release = Release::V1(ReleaseV1 {
+            upc: upc.clone(),
+            title: BoundedVec::try_from(b"Smoke".to_vec()).expect("non-empty title"),
+            title_aliases: Default::default(),
+            artist: PartyId::Ipi(
+                BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal"),
+            ),
+            // The tracklist is mandatory non-empty; `RecordingRef::Midds` is
+            // format-valid without a companion record.
+            tracks: BoundedVec::try_from(vec![RecordingRef::Midds(0)]).expect("one track"),
+            producers: Default::default(),
+            status: ReleaseStatus::Official,
+            release_date: ReleaseDate {
+                year: 2024,
+                month: 3,
+                day: 15,
+            },
+            country: Country::Fr,
+            distributor_name: BoundedVec::try_from(b"Believe".to_vec())
+                .expect("non-empty distributor name"),
+            release_type: ReleaseType::Album,
+            format: ReleaseFormat::Cd,
+            packaging: ReleasePackaging::None,
+            cover_contributors: Default::default(),
+            offchain_extension: None,
+        });
+
+        pallet_midds::Pallet::<Runtime, pallet_midds::Instance3>::deposit(
+            RuntimeOrigin::signed(depositor.clone()),
+            release.clone(),
+        )
+        .expect("Release deposit on melodie-runtime Instance3");
+
+        assert_eq!(
+            pallet_midds::Items::<Runtime, pallet_midds::Instance3>::get(0),
+            Some(release),
+            "Release must be stored under the Instance3 map"
+        );
+        assert!(
+            pallet_midds::Items::<Runtime, pallet_midds::Instance1>::get(0).is_none(),
+            "Instance3 deposit must not leak into the MusicalWorks instance"
+        );
+        assert!(
+            pallet_midds::Items::<Runtime, pallet_midds::Instance2>::get(0).is_none(),
+            "Instance3 deposit must not leak into the Recordings instance"
+        );
+
+        assert_eq!(
+            pallet_midds::Pallet::<Runtime, pallet_midds::Instance3>::lookup_by_identifier(upc),
+            vec![0],
+            "UPC reverse index backs ReleaseApi::lookup_by_identifier"
+        );
+
+        let held = <Balances as InspectHold<AccountId>>::balance_on_hold(
+            &pallet_midds::HoldReason::<pallet_midds::Instance3>::Deposit.into(),
+            &depositor,
+        );
+        assert!(held > 0, "Instance3 deposit must lock a bond");
+    });
+}
