@@ -120,16 +120,21 @@ impl pallet_midds::BenchmarkHelper<midds_types::MusicalWork, Signature, AccountI
         use frame_support::BoundedVec;
         use midds_types::{Creator, CreatorRole, CreatorRoles, MusicalWorkV1, PartyId, WorkType};
 
-        // Build a minimal valid MusicalWorkV1; size hint is mostly carried by
-        // the title (bounded at 256 bytes), padded to approximate the requested
-        // encoded length. ISWC is derived from `size` so distinct sizes yield
-        // distinct payloads — required by the post-economics `PayloadHashes`
-        // guard for benchmarks that queue multiple records back-to-back
-        // (notably `force_remove_many`).
-        let title_len = (size as usize).min(midds_types::TITLE_MAX_LEN as usize);
-        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len.max(1)])
+        // Build a minimal valid MusicalWorkV1. The ISWC is held CONSTANT so
+        // `update` / `force_edit` (which call `bench_instance(0)` then
+        // `bench_instance(s)`) keep a stable canonical identifier and don't
+        // trip `IdentifierImmutable`. Per-iteration payload uniqueness — needed
+        // by `force_remove_many` which queues multiple records and would
+        // otherwise hit `DuplicatePayload` — is carried by the title length:
+        // `title_len = size + 1` (clamped to `TITLE_MAX_LEN`) so distinct
+        // `size` values within `force_remove_many`'s `Linear<1, 64>` range
+        // yield distinct payloads. Multi-claim on the same identifier is
+        // explicitly allowed by the pallet (`IdentifierClaims` is keyed by
+        // (identifier, id)).
+        let title_len = ((size as usize) + 1).min(midds_types::TITLE_MAX_LEN as usize);
+        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len])
             .expect("title clamped to TITLE_MAX_LEN");
-        let iswc = bench_iswc_from_size(size);
+        let iswc = bench_iswc();
         let ipi = BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal");
         let mut roles = CreatorRoles::new();
         roles
@@ -161,21 +166,17 @@ impl pallet_midds::BenchmarkHelper<midds_types::MusicalWork, Signature, AccountI
     }
 }
 
-/// Build a structurally-valid 11-byte ISWC literal from a numeric seed —
-/// `T` + 10 ASCII digits, with the seed in the low decimal positions. The
-/// pallet only enforces format (charset + length), not the CISAC checksum,
-/// so this synthetic ISWC is admissible for benchmarking.
+/// Constant, structurally-valid 11-byte ISWC literal — `T` + 10 ASCII digits.
+/// Held constant across all `bench_instance(_)` calls so the canonical
+/// identifier never changes between an `update` / `force_edit` benchmark's
+/// initial and updated payloads (`IdentifierImmutable` guard). The pallet
+/// allows multi-claim on the same identifier, so reusing this literal across
+/// records in `force_remove_many` is admissible. Only the format is enforced
+/// (charset + length), not the CISAC checksum.
 #[cfg(feature = "runtime-benchmarks")]
-fn bench_iswc_from_size(size: u32) -> midds_traits::Iswc {
+fn bench_iswc() -> midds_traits::Iswc {
     use frame_support::BoundedVec;
-    let mut bytes = [b'0'; 11];
-    bytes[0] = b'T';
-    let mut n = size;
-    for slot in bytes[1..].iter_mut().rev() {
-        *slot = b'0' + (n % 10) as u8;
-        n /= 10;
-    }
-    BoundedVec::try_from(bytes.to_vec()).expect("11-byte literal fits ISWC bound")
+    BoundedVec::try_from(b"T0000000001".to_vec()).expect("11-byte literal fits ISWC bound")
 }
 
 /// Generate a deterministic `(MultiSignature, AccountId)` pair valid for
@@ -239,16 +240,16 @@ impl pallet_midds::BenchmarkHelper<midds_types::Recording, Signature, AccountId>
         use frame_support::BoundedVec;
         use midds_types::{PartyId, RecordingV1, WorkRef};
 
-        // Minimal valid RecordingV1; the size hint is carried by the title
-        // (bounded at TITLE_MAX_LEN), padded to approximate the requested
-        // encoded length. The ISRC is derived from `size` so distinct sizes
-        // yield distinct payloads — required by the post-economics
-        // `PayloadHashes` guard for benchmarks that queue several records
-        // back-to-back (notably `force_remove_many`).
-        let title_len = (size as usize).min(midds_types::TITLE_MAX_LEN as usize);
-        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len.max(1)])
+        // Minimal valid RecordingV1. The ISRC is held CONSTANT so `update` /
+        // `force_edit` keep a stable canonical identifier (cf.
+        // `MusicalWorksBenchmarkHelper` comment). Per-iteration payload
+        // uniqueness is carried by the title length: `size + 1` (clamped to
+        // `TITLE_MAX_LEN`) so distinct `size` values within
+        // `force_remove_many`'s `Linear<1, 64>` range yield distinct payloads.
+        let title_len = ((size as usize) + 1).min(midds_types::TITLE_MAX_LEN as usize);
+        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len])
             .expect("title clamped to TITLE_MAX_LEN");
-        let isrc = bench_isrc_from_size(size);
+        let isrc = bench_isrc();
         let ipi = BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal");
 
         midds_types::Recording::V1(RecordingV1 {
@@ -279,21 +280,14 @@ impl pallet_midds::BenchmarkHelper<midds_types::Recording, Signature, AccountId>
     }
 }
 
-/// Build a structurally-valid 12-byte ISRC literal from a numeric seed —
-/// `US` (uppercase country) + `AAA` (alphanumeric registrant) + 7 digits
-/// carrying the seed in the low decimal positions. The pallet only enforces
-/// format (charset + length), not the IFPI structure beyond that, so this
-/// synthetic ISRC is admissible for benchmarking.
+/// Constant, structurally-valid 12-byte ISRC literal — `US` (uppercase
+/// country) + `AAA` (alphanumeric registrant) + 7 digits. Held constant
+/// across all `bench_instance(_)` calls (cf. `bench_iswc`). Only format is
+/// enforced (charset + length), not IFPI structure beyond that.
 #[cfg(feature = "runtime-benchmarks")]
-fn bench_isrc_from_size(size: u32) -> midds_traits::Isrc {
+fn bench_isrc() -> midds_traits::Isrc {
     use frame_support::BoundedVec;
-    let mut bytes = *b"USAAA0000000";
-    let mut n = size;
-    for slot in bytes[5..].iter_mut().rev() {
-        *slot = b'0' + (n % 10) as u8;
-        n /= 10;
-    }
-    BoundedVec::try_from(bytes.to_vec()).expect("12-byte literal fits ISRC bound")
+    BoundedVec::try_from(b"USAAA2500001".to_vec()).expect("12-byte literal fits ISRC bound")
 }
 
 // MIDDS Instance3 — `Release` (UPC/EAN-keyed). Completes the V1 MIDDS type
@@ -341,16 +335,16 @@ impl pallet_midds::BenchmarkHelper<midds_types::Release, Signature, AccountId>
             ReleaseStatus, ReleaseType, ReleaseV1,
         };
 
-        // Minimal valid ReleaseV1; the size hint is carried by the title
-        // (bounded at TITLE_MAX_LEN), padded to approximate the requested
-        // encoded length. The UPC is derived from `size` so distinct sizes
-        // yield distinct payloads — required by the post-economics
-        // `PayloadHashes` guard for benchmarks that queue several records
-        // back-to-back (notably `force_remove_many`).
-        let title_len = (size as usize).min(midds_types::TITLE_MAX_LEN as usize);
-        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len.max(1)])
+        // Minimal valid ReleaseV1. The UPC is held CONSTANT so `update` /
+        // `force_edit` keep a stable canonical identifier (cf.
+        // `MusicalWorksBenchmarkHelper` comment). Per-iteration payload
+        // uniqueness is carried by the title length: `size + 1` (clamped to
+        // `TITLE_MAX_LEN`) so distinct `size` values within
+        // `force_remove_many`'s `Linear<1, 64>` range yield distinct payloads.
+        let title_len = ((size as usize) + 1).min(midds_types::TITLE_MAX_LEN as usize);
+        let title = BoundedVec::try_from(alloc::vec![b'a'; title_len])
             .expect("title clamped to TITLE_MAX_LEN");
-        let upc = bench_upc_from_size(size);
+        let upc = bench_upc();
         let ipi = BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal");
         // The tracklist is mandatory non-empty. `RecordingRef::Midds` has no
         // format constraint (the referenced id need not exist for a
@@ -389,18 +383,12 @@ impl pallet_midds::BenchmarkHelper<midds_types::Release, Signature, AccountId>
     }
 }
 
-/// Build a structurally-valid 13-digit EAN-13/GTIN-13 literal from a numeric
-/// seed. The pallet only enforces format (charset + length: 12 or 13 ASCII
-/// digits), not the GS1 mod-10 check digit, so this synthetic UPC is
-/// admissible for benchmarking.
+/// Constant, structurally-valid 13-digit EAN-13/GTIN-13 literal. Held
+/// constant across all `bench_instance(_)` calls (cf. `bench_iswc`). Only
+/// format is enforced (charset + length: 12 or 13 ASCII digits), not the GS1
+/// mod-10 check digit.
 #[cfg(feature = "runtime-benchmarks")]
-fn bench_upc_from_size(size: u32) -> midds_traits::Upc {
+fn bench_upc() -> midds_traits::Upc {
     use frame_support::BoundedVec;
-    let mut bytes = *b"0000000000000";
-    let mut n = size;
-    for slot in bytes.iter_mut().rev() {
-        *slot = b'0' + (n % 10) as u8;
-        n /= 10;
-    }
-    BoundedVec::try_from(bytes.to_vec()).expect("13-byte literal fits UPC bound")
+    BoundedVec::try_from(b"0000000000001".to_vec()).expect("13-byte literal fits UPC bound")
 }
