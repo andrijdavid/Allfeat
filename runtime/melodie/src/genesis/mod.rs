@@ -30,7 +30,7 @@ use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_genesis_builder::PresetId;
 use staging::staging_config_genesis;
 
-use crate::{RuntimeGenesisConfig, SessionKeys};
+use crate::{MiddsDepositBase, MiddsDepositPerByte, RuntimeGenesisConfig, SessionKeys};
 
 mod development;
 mod local;
@@ -89,6 +89,22 @@ pub fn genesis(
         },
         sudo: pallet_sudo::GenesisConfig {
             key: Some(root_key)
+        },
+        // The three `pallet_midds` instances share the same hybrid
+        // payload-aware calibration at genesis. Post-launch, sudo can
+        // recalibrate any instance independently via `force_set_deposit_*`
+        // (`../midds-sdk/docs/economics.md` §13.4).
+        musical_works: pallet_midds::GenesisConfig {
+            deposit_base: MiddsDepositBase::get(),
+            deposit_per_byte: MiddsDepositPerByte::get(),
+        },
+        recordings: pallet_midds::GenesisConfig {
+            deposit_base: MiddsDepositBase::get(),
+            deposit_per_byte: MiddsDepositPerByte::get(),
+        },
+        releases: pallet_midds::GenesisConfig {
+            deposit_base: MiddsDepositBase::get(),
+            deposit_per_byte: MiddsDepositPerByte::get(),
         },
     })
 }

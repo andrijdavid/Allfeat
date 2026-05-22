@@ -22,13 +22,24 @@ use frame_system::{EnsureRoot, EnsureSigned};
 use shared_runtime::currency::{MICROAFT, MILLIAFT};
 use sp_runtime::{FixedU128, MultiSigner, traits::AccountIdConversion};
 
-// MIDDS economic model — see `../midds-sdk/docs/economics.md`. Numbers below
-// implement section 6 of that doc verbatim; all the rationale lives there.
+// MIDDS economic model — see `../midds-sdk/docs/economics.md`. Dynamic
+// pricing scaffolding (multipliers, window, finalization queue) follows that
+// doc; the bond calibration below uses a hybrid payload-aware model that
+// supersedes §6's flat 500/10 figures (doc refresh pending).
 parameter_types! {
-    // Bond formula (unmultiplied) — calibrated to ~$0.01 in regime nominal at
-    // ~$0.02/AFT. The dynamic multipliers stack on top via `M_fast × M_slow`.
-    pub const MiddsDepositBase: Balance = 500 * MILLIAFT;
-    pub const MiddsDepositPerByte: Balance = 10 * MICROAFT;
+    // Bond formula (unmultiplied) — hybrid payload-aware: `DepositBase` pinned
+    // to the ExistentialDeposit (0.1 AFT) for minimal anti-sybil cost, weight
+    // shifted onto `DepositPerByte` so saturated payloads pay materially more
+    // than minimal ones. At $0.02/AFT a typical MusicalWork (~137 B) costs
+    // ~$0.003, a maxed-out Release (~9 KB) ~$0.05 — a 17× ratio creating the
+    // anti-stuffing incentive absent from the prior flat 0.5 AFT calibration.
+    // Dynamic multipliers stack on top via `M_fast × M_slow`. These two are
+    // consumed by the genesis builder (cf. `genesis::genesis`) to seed the
+    // pallet's runtime-mutable `DepositBase` / `DepositPerByte` storage —
+    // governance can recalibrate via `force_set_deposit_*` post-launch
+    // without a runtime upgrade (`../midds-sdk/docs/economics.md` §13.4).
+    pub const MiddsDepositBase: Balance = 100 * MILLIAFT;
+    pub const MiddsDepositPerByte: Balance = 250 * MICROAFT;
 
     // Refundable commitment window aligned with the IFPI Friday Global
     // Release Day. Within this window the depositor can `remove_own` (base
@@ -81,8 +92,6 @@ impl pallet_midds::Config<pallet_midds::Instance1> for Runtime {
     type OffchainSignature = Signature;
     type Signer = MultiSigner;
     type TreasuryAccount = MiddsTreasuryAccount;
-    type DepositBase = MiddsDepositBase;
-    type DepositPerByte = MiddsDepositPerByte;
     type CommitmentWindow = MiddsCommitmentWindow;
     type MaxFinalizationsPerBlock = MiddsMaxFinalizationsPerBlock;
     type MaxRemovalsPerCall = MiddsMaxRemovalsPerCall;
@@ -198,8 +207,6 @@ impl pallet_midds::Config<pallet_midds::Instance2> for Runtime {
     type OffchainSignature = Signature;
     type Signer = MultiSigner;
     type TreasuryAccount = MiddsTreasuryAccount;
-    type DepositBase = MiddsDepositBase;
-    type DepositPerByte = MiddsDepositPerByte;
     type CommitmentWindow = MiddsCommitmentWindow;
     type MaxFinalizationsPerBlock = MiddsMaxFinalizationsPerBlock;
     type MaxRemovalsPerCall = MiddsMaxRemovalsPerCall;
@@ -299,8 +306,6 @@ impl pallet_midds::Config<pallet_midds::Instance3> for Runtime {
     type OffchainSignature = Signature;
     type Signer = MultiSigner;
     type TreasuryAccount = MiddsTreasuryAccount;
-    type DepositBase = MiddsDepositBase;
-    type DepositPerByte = MiddsDepositPerByte;
     type CommitmentWindow = MiddsCommitmentWindow;
     type MaxFinalizationsPerBlock = MiddsMaxFinalizationsPerBlock;
     type MaxRemovalsPerCall = MiddsMaxRemovalsPerCall;

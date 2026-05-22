@@ -33,8 +33,8 @@
 //! SDK / runtime decoupling: `midds-sdk` never depends on `melodie-runtime`.
 
 use crate::{
-    AccountId, Balance, Balances, MiddsCommitmentWindow, MiddsTreasuryAccount, Runtime,
-    RuntimeCall, RuntimeOrigin, TransactionByteFee, WeightToFee,
+    AccountId, Balance, Balances, MiddsCommitmentWindow, MiddsDepositBase, MiddsDepositPerByte,
+    MiddsTreasuryAccount, Runtime, RuntimeCall, RuntimeOrigin, TransactionByteFee, WeightToFee,
 };
 use frame_support::{
     traits::{
@@ -77,6 +77,31 @@ fn build_ext(accounts: &[AccountId]) -> sp_io::TestExternalities {
     }
     .assimilate_storage(&mut t)
     .expect("balances genesis");
+    // Seed each `pallet_midds` instance's runtime-mutable bond params from
+    // the runtime constants — mirrors what `genesis::genesis` does on a real
+    // chain bootstrap. Without this `DepositBase::<_>::get()` would return 0
+    // and every deposit would skip the hold.
+    pallet_midds::GenesisConfig::<Runtime, pallet_midds::Instance1> {
+        deposit_base: MiddsDepositBase::get(),
+        deposit_per_byte: MiddsDepositPerByte::get(),
+        _config: core::marker::PhantomData,
+    }
+    .assimilate_storage(&mut t)
+    .expect("midds Instance1 genesis");
+    pallet_midds::GenesisConfig::<Runtime, pallet_midds::Instance2> {
+        deposit_base: MiddsDepositBase::get(),
+        deposit_per_byte: MiddsDepositPerByte::get(),
+        _config: core::marker::PhantomData,
+    }
+    .assimilate_storage(&mut t)
+    .expect("midds Instance2 genesis");
+    pallet_midds::GenesisConfig::<Runtime, pallet_midds::Instance3> {
+        deposit_base: MiddsDepositBase::get(),
+        deposit_per_byte: MiddsDepositPerByte::get(),
+        _config: core::marker::PhantomData,
+    }
+    .assimilate_storage(&mut t)
+    .expect("midds Instance3 genesis");
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| frame_system::Pallet::<Runtime>::set_block_number(1));
     ext
@@ -142,9 +167,8 @@ fn measure(item: &MusicalWork) -> FeeBreakdown {
 }
 
 fn bond_for_size(size: u32) -> Balance {
-    let base = <Runtime as pallet_midds::Config<pallet_midds::Instance1>>::DepositBase::get();
-    let per_byte =
-        <Runtime as pallet_midds::Config<pallet_midds::Instance1>>::DepositPerByte::get();
+    let base = pallet_midds::DepositBase::<Runtime, pallet_midds::Instance1>::get();
+    let per_byte = pallet_midds::DepositPerByte::<Runtime, pallet_midds::Instance1>::get();
     base.saturating_add(per_byte.saturating_mul(size as Balance))
 }
 
@@ -198,10 +222,10 @@ fn avg_size_musical_work() -> MusicalWork {
 /// the held amount equals the unmultiplied base.
 fn assert_real_bond_matches(item: &MusicalWork) {
     let depositor = account(1);
-    let breakdown = measure(item);
-
     let mut ext = build_ext(&[depositor.clone()]);
     ext.execute_with(|| {
+        let breakdown = measure(item);
+
         pallet_midds::Pallet::<Runtime, pallet_midds::Instance1>::deposit(
             RuntimeOrigin::signed(depositor.clone()),
             item.clone(),
@@ -363,41 +387,50 @@ fn fees_distribution_1000_executes() {
 
 #[test]
 fn fees_report() {
-    let rows = vec![
-        ReportRow {
-            label: "small (min payload)",
-            breakdown: measure(&pathological::min_size_musical_work()),
-        },
-        ReportRow {
-            label: "avg (~200 B target)",
-            breakdown: measure(&avg_size_musical_work()),
-        },
-        ReportRow {
-            label: "max (MaxEncodedLen)",
-            breakdown: measure(&pathological::max_size_musical_work()),
-        },
-    ];
+    // `measure` now reads the bond formula from runtime storage (the
+    // `pallet_midds::DepositBase` / `DepositPerByte` `StorageValue`s
+    // introduced for §13.4 governance), so it must run inside an
+    // externalities-provided environment. `build_ext` seeds those storages
+    // from the runtime constants the same way genesis would on a real
+    // chain.
+    let mut ext = build_ext(&[]);
+    ext.execute_with(|| {
+        let rows = vec![
+            ReportRow {
+                label: "small (min payload)",
+                breakdown: measure(&pathological::min_size_musical_work()),
+            },
+            ReportRow {
+                label: "avg (~200 B target)",
+                breakdown: measure(&avg_size_musical_work()),
+            },
+            ReportRow {
+                label: "max (MaxEncodedLen)",
+                breakdown: measure(&pathological::max_size_musical_work()),
+            },
+        ];
 
-    let totals: Vec<Balance> = gen_n(DISTRIBUTION_SEED, 1_000)
-        .iter()
-        .map(|w| measure(w).total_min())
-        .collect();
-    let distribution = distribution_summary(totals);
+        let totals: Vec<Balance> = gen_n(DISTRIBUTION_SEED, 1_000)
+            .iter()
+            .map(|w| measure(w).total_min())
+            .collect();
+        let distribution = distribution_summary(totals);
 
-    write_markdown_report(&rows, &distribution);
+        write_markdown_report(&rows, &distribution);
 
-    assert!(
-        rows[0].breakdown.bond < rows[1].breakdown.bond,
-        "small bond ≥ avg bond: {} vs {}",
-        rows[0].breakdown.bond,
-        rows[1].breakdown.bond
-    );
-    assert!(
-        rows[1].breakdown.bond < rows[2].breakdown.bond,
-        "avg bond ≥ max bond: {} vs {}",
-        rows[1].breakdown.bond,
-        rows[2].breakdown.bond
-    );
+        assert!(
+            rows[0].breakdown.bond < rows[1].breakdown.bond,
+            "small bond ≥ avg bond: {} vs {}",
+            rows[0].breakdown.bond,
+            rows[1].breakdown.bond
+        );
+        assert!(
+            rows[1].breakdown.bond < rows[2].breakdown.bond,
+            "avg bond ≥ max bond: {} vs {}",
+            rows[1].breakdown.bond,
+            rows[2].breakdown.bond
+        );
+    });
 }
 
 // -----------------------------------------------------------------------------
