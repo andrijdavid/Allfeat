@@ -118,7 +118,7 @@ impl pallet_midds::BenchmarkHelper<midds_types::MusicalWork, Signature, AccountI
 {
     fn bench_instance(size: u32) -> midds_types::MusicalWork {
         use frame_support::BoundedVec;
-        use midds_types::{Creator, CreatorId, CreatorRole, MusicalWorkV1, WorkType};
+        use midds_types::{Creator, CreatorRole, CreatorRoles, MusicalWorkV1, PartyId, WorkType};
 
         // Build a minimal valid MusicalWorkV1; size hint is mostly carried by
         // the title (bounded at 256 bytes), padded to approximate the requested
@@ -131,16 +131,20 @@ impl pallet_midds::BenchmarkHelper<midds_types::MusicalWork, Signature, AccountI
             .expect("title clamped to TITLE_MAX_LEN");
         let iswc = bench_iswc_from_size(size);
         let ipi = BoundedVec::try_from(b"123456789".to_vec()).expect("9-byte IPI literal");
+        let mut roles = CreatorRoles::new();
+        roles
+            .try_insert(CreatorRole::Composer)
+            .expect("single role fits CREATOR_ROLES_MAX");
         let creators = BoundedVec::try_from(alloc::vec![Creator {
-            role: CreatorRole::Composer,
-            id: CreatorId::Ipi(ipi),
+            roles,
+            party: PartyId::Ipi(ipi),
         }])
         .expect("single creator fits CREATORS_MAX");
 
         midds_types::MusicalWork::V1(MusicalWorkV1 {
             iswc,
             title,
-            creation_year: 2025,
+            creation_year: Some(2025),
             instrumental: false,
             language: None,
             bpm: None,
