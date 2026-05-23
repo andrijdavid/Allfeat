@@ -104,7 +104,7 @@ impl pallet_midds::Config<pallet_midds::Instance1> for Runtime {
     type SlowAdjustmentRate = MiddsSlowAdjustmentRate;
     type SlowMultiplierMin = MiddsSlowMultiplierMin;
     type SlowMultiplierMax = MiddsSlowMultiplierMax;
-    type WeightInfo = ();
+    type WeightInfo = crate::weights::midds_musical_works::AllfeatWeight<Runtime>;
     #[cfg(feature = "runtime-benchmarks")]
     type BenchmarkHelper = MusicalWorksBenchmarkHelper;
 }
@@ -224,7 +224,7 @@ impl pallet_midds::Config<pallet_midds::Instance2> for Runtime {
     type SlowAdjustmentRate = MiddsSlowAdjustmentRate;
     type SlowMultiplierMin = MiddsSlowMultiplierMin;
     type SlowMultiplierMax = MiddsSlowMultiplierMax;
-    type WeightInfo = ();
+    type WeightInfo = crate::weights::midds_recordings::AllfeatWeight<Runtime>;
     #[cfg(feature = "runtime-benchmarks")]
     type BenchmarkHelper = RecordingsBenchmarkHelper;
 }
@@ -316,7 +316,7 @@ impl pallet_midds::Config<pallet_midds::Instance3> for Runtime {
     type SlowAdjustmentRate = MiddsSlowAdjustmentRate;
     type SlowMultiplierMin = MiddsSlowMultiplierMin;
     type SlowMultiplierMax = MiddsSlowMultiplierMax;
-    type WeightInfo = ();
+    type WeightInfo = crate::weights::midds_releases::AllfeatWeight<Runtime>;
     #[cfg(feature = "runtime-benchmarks")]
     type BenchmarkHelper = ReleasesBenchmarkHelper;
 }
