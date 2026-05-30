@@ -2,7 +2,7 @@
 
 **Network:** Allfeat
 **Consensus:** Proof of Authority (PoA)
-**Version:** 1.6
+**Version:** 1.7
 
 ---
 
@@ -115,43 +115,67 @@ _Format:_ `/ip4/<YOUR_PUBLIC_IP>/tcp/30333/p2p/<YOUR_PEER_ID>`
 
 Set up your node using the official binary. Configure it as a `systemd` service to ensure it restarts automatically. Ensure NTP (Time Sync) is active.
 
-### Step 2: Generate Session Keys (Local)
+### Step 2: Create Your Validator Account
 
-We use **Aura** and **Grandpa**. You must generate these keys locally on your server's keystore.
+Use the Polkadot.js browser extension (or `allfeat key generate`) to create the account that will operate this validator. This account — your **Validator ID** — is the one that will submit the `session.setKeys` transaction.
 
-Run the following command on your node (localhost only):
+The next step needs its **public key in hex** (`0x` + 64 hex chars). You can derive it from the SS58 address with:
+
+    allfeat key inspect "<YOUR_VALIDATOR_SS58_ADDRESS>"
+    # use the "Account ID" field of the output (0x...)
+
+### Step 3: Generate Session Keys & Ownership Proof (Local)
+
+We use **Aura** (block production) and **Grandpa** (finality). Generate them locally in your node's keystore.
+
+> **⚠️ Why a proof is now required**
+> Since the proof-of-possession update (`pallet-session` v46), `session.setKeys` requires a cryptographic **proof** that you own the private keys _and_ that they are being registered for **your** account. Each session key signs your Validator account; this blocks a front-runner from registering your keys under their own account (rogue-key attack).
+> An empty proof (the legacy `0x00`) is now **rejected** with `session.InvalidProof`.
+
+Run the following on your node (localhost only), passing **your Validator account public key** as the `owner`:
 
     curl -H "Content-Type: application/json" \
-        -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' \
-        http://localhost:9933
+        -d '{"id":1,"jsonrpc":"2.0","method":"author_rotateKeysWithOwner","params":["0xYOUR_VALIDATOR_PUBLIC_KEY_HEX"]}' \
+        http://localhost:9944
 
 **Response Example:**
 
     {
       "jsonrpc": "2.0",
-      "result": "0x1234...abcd",
+      "result": {
+        "keys":  "0x1234...abcd",
+        "proof": "0x5678...ef01"
+      },
       "id": 1
     }
 
-1.  **Copy the `result` hex string.** This is the concatenation of your public keys.
-2.  **Backup your Keystore:** Locate the `keystore` folder in your chain's base path. **If you lose these keys, you cannot validate.**
+> 💡 The repository ships a helper that decodes your address and performs the call for you:
+>
+>     ./scripts/rotate_node_keys.sh <YOUR_VALIDATOR_SS58_OR_HEX>
+>
+> (For deterministic, seed-derived keys instead, use `./scripts/setup_validator_keys.sh <YOUR_VALIDATOR_SS58_OR_HEX>`.)
+
+1.  **Copy both `keys` and `proof`.** `keys` is the concatenation of your public session keys; `proof` proves ownership for your account. You will need both in Section 7.
+2.  **`author_rotateKeysWithOwner` is an unsafe RPC** — keep it on `localhost` (allowed by default) or start the node with `--rpc-methods unsafe`.
+3.  **Backup your Keystore:** Locate the `keystore` folder in your chain's base path. **If you lose these keys, you cannot validate.**
+
+> ⚠️ The `proof` is valid **only** for the account you passed as `owner`. You must submit `setKeys` from that exact account, otherwise it fails with `InvalidProof`. If you rotate your keys again, generate a fresh `proof`.
 
 ---
 
 ## 7. On-Chain Association
 
-The network requires you to map your local session keys (from Step 2) to an on-chain account.
+Register your session keys (from Step 3) on-chain by mapping them to your Validator account.
 
-1.  **Create an Account:** Use the Polkadot.js extension to generate a standard account. This will be your **Validator ID**.
-2.  **Navigate to Polkadot.js Apps:** Connect to the network.
-3.  **Go to:** `Developer` -> `Extrinsics`.
-4.  **Configure the Call:**
-    - **Account:** Select your Validator ID account.
+1.  **Navigate to Polkadot.js Apps:** Connect to the network.
+2.  **Go to:** `Developer` -> `Extrinsics`.
+3.  **Configure the Call:**
+    - **Account:** Select your **Validator ID** account — the **same** account you passed as `owner` in Step 3.
     - **Pallet:** Select `session`.
     - **Method:** Select `setKeys`.
-    - **keys:** Paste the long hex string (`0x...`) generated in Step 2.
-    - **proof:** Enter `0x00`.
-5.  **Submit:** Sign and submit the transaction.
+    - **keys:** Paste the `keys` value (`0x...`) from Step 3.
+    - **proof:** Paste the `proof` value (`0x...`) from Step 3. **Do not** enter `0x00` — that legacy value now fails with `InvalidProof`.
+4.  **Submit:** Sign and submit the transaction with your Validator account.
 
 ---
 
