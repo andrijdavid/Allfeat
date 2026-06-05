@@ -15,9 +15,6 @@ jobs:
       contents: read
       packages: write
 
-    env:
-      IMAGE_NAME: ${{ github.repository_owner }}/allfeat
-
     strategy:
       fail-fast: false
       matrix:
@@ -28,6 +25,9 @@ jobs:
             runner: ubuntu-24.04-arm
 
     steps:
+      - name: Set image name
+        run: echo "IMAGE_NAME=$(echo '${{ github.repository_owner }}/allfeat' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Free Disk Space for Docker
         uses: endersonmenezes/free-disk-space@v3
         with:
@@ -96,10 +96,10 @@ jobs:
       contents: read
       packages: write
 
-    env:
-      IMAGE_NAME: ${{ github.repository_owner }}/allfeat
-
     steps:
+      - name: Set image name
+        run: echo "IMAGE_NAME=$(echo '${{ github.repository_owner }}/allfeat' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
